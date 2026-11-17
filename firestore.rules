@@ -1,0 +1,407 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Primitives & Identity Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email.lower() == 'jwkim9633@gmail.com';
+    }
+    function isAdmin() {
+      return isVerified() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        isBootstrappedAdmin()
+      );
+    }
+
+    function isStringBounded(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'label', 'role', 'addedBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && isStringBounded(data.email, 3, 200)
+        && (!('label' in data) || isStringBounded(data.label, 0, 100))
+        && (!('addedBy' in data) || isStringBounded(data.addedBy, 0, 128))
+        && data.role == 'admin'
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSiteConfig(data) {
+      return data.keys().hasAll(['brand', 'theme', 'homeActions', 'homeSections', 'communityLinks', 'seo', 'legal', 'updatedAt'])
+        && data.keys().hasOnly(['brand', 'theme', 'homeActions', 'homeSections', 'communityLinks', 'seo', 'legal', 'eventsSettings', 'updatedAt', 'updatedBy'])
+        && data.brand is map
+        && data.theme is map
+        && data.homeActions is list && data.homeActions.size() <= 12
+        && data.homeSections is list && data.homeSections.size() <= 20
+        && data.communityLinks is list && data.communityLinks.size() <= 20
+        && data.seo is map
+        && data.legal is map
+        && (!('eventsSettings' in data) || data.eventsSettings is map)
+        && (!('updatedBy' in data) || isStringBounded(data.updatedBy, 0, 128))
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['title', 'category', 'price', 'status', 'images', 'order', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['title', 'category', 'price', 'currency', 'status', 'language', 'grade', 'setCode', 'description', 'images', 'dmPrompt', 'order', 'isFeatured', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.title, 1, 140)
+        && data.category in ['싱글카드', '등급카드', '미개봉 박스', '팩', '기타']
+        && data.price is number && data.price >= 0 && data.price <= 1000000000
+        && (!('currency' in data) || data.currency == 'KRW')
+        && data.status in ['판매중', '예약중', '판매완료']
+        && (!('language' in data) || isStringBounded(data.language, 0, 40))
+        && (!('grade' in data) || isStringBounded(data.grade, 0, 60))
+        && (!('setCode' in data) || isStringBounded(data.setCode, 0, 60))
+        && (!('description' in data) || isStringBounded(data.description, 0, 4000))
+        && data.images is list && data.images.size() <= 8
+        && (data.images.size() == 0 || (data.images[0] is string && data.images[0].size() <= 600))
+        && (data.images.size() < 2 || (data.images[1] is string && data.images[1].size() <= 600))
+        && (!('dmPrompt' in data) || isStringBounded(data.dmPrompt, 0, 300))
+        && data.order is number
+        && (!('isFeatured' in data) || data.isFeatured is bool)
+        && data.isSample is bool
+        && data.visibilityState in ['published', 'draft', 'trashed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBuyback(data) {
+      return data.keys().hasAll(['cardName', 'language', 'condition', 'quantity', 'photoUrls', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['cardName', 'language', 'condition', 'desiredPrice', 'quantity', 'notes', 'contact', 'photoUrls', 'status', 'offerPrice', 'adminMemo', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.cardName, 1, 140)
+        && data.language in ['한국어', '일본어', '영어', '기타']
+        && isStringBounded(data.condition, 1, 100)
+        && (!('desiredPrice' in data) || isStringBounded(data.desiredPrice, 0, 80))
+        && data.quantity is number && data.quantity >= 1 && data.quantity <= 9999
+        && (!('notes' in data) || isStringBounded(data.notes, 0, 2000))
+        && (!('contact' in data) || isStringBounded(data.contact, 0, 140))
+        && data.photoUrls is list && data.photoUrls.size() <= 4
+        && (data.photoUrls.size() == 0 || (data.photoUrls[0] is string && data.photoUrls[0].size() <= 600))
+        && (data.photoUrls.size() < 2 || (data.photoUrls[1] is string && data.photoUrls[1].size() <= 600))
+        && (data.photoUrls.size() < 3 || (data.photoUrls[2] is string && data.photoUrls[2].size() <= 600))
+        && (data.photoUrls.size() < 4 || (data.photoUrls[3] is string && data.photoUrls[3].size() <= 600))
+        && data.status in ['신규', '검토 중', '가격 제안', '협의 완료', '거래 완료', '거절']
+        && (!('offerPrice' in data) || isStringBounded(data.offerPrice, 0, 80))
+        && (!('adminMemo' in data) || isStringBounded(data.adminMemo, 0, 2000))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPost(data) {
+      return data.keys().hasAll(['title', 'slug', 'category', 'content', 'isPinned', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['title', 'slug', 'category', 'summary', 'content', 'coverImage', 'isPinned', 'isSample', 'scheduledAt', 'seoTitle', 'seoDescription', 'visibilityState', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.title, 1, 160)
+        && isValidId(data.slug)
+        && isStringBounded(data.category, 1, 50)
+        && (!('summary' in data) || isStringBounded(data.summary, 0, 400))
+        && isStringBounded(data.content, 1, 30000)
+        && (!('coverImage' in data) || isStringBounded(data.coverImage, 0, 600))
+        && data.isPinned is bool
+        && data.isSample is bool
+        && (!('scheduledAt' in data) || data.scheduledAt == null || data.scheduledAt is timestamp)
+        && (!('seoTitle' in data) || isStringBounded(data.seoTitle, 0, 120))
+        && (!('seoDescription' in data) || isStringBounded(data.seoDescription, 0, 300))
+        && data.visibilityState in ['published', 'draft', 'trashed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNotice(data) {
+      return data.keys().hasAll(['title', 'content', 'isPinned', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['title', 'content', 'isPinned', 'isSample', 'scheduledAt', 'visibilityState', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.title, 1, 160)
+        && isStringBounded(data.content, 1, 4000)
+        && data.isPinned is bool
+        && data.isSample is bool
+        && (!('scheduledAt' in data) || data.scheduledAt == null || data.scheduledAt is timestamp)
+        && data.visibilityState in ['published', 'draft', 'trashed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll(['title', 'startAt', 'endAt', 'hideWhenEnded', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['title', 'description', 'startAt', 'endAt', 'locationOrPlatform', 'externalUrl', 'hideWhenEnded', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.title, 1, 160)
+        && (!('description' in data) || isStringBounded(data.description, 0, 2000))
+        && data.startAt is timestamp
+        && data.endAt is timestamp
+        && (!('locationOrPlatform' in data) || isStringBounded(data.locationOrPlatform, 0, 120))
+        && (!('externalUrl' in data) || isStringBounded(data.externalUrl, 0, 500))
+        && data.hideWhenEnded is bool
+        && data.isSample is bool
+        && data.visibilityState in ['published', 'draft', 'trashed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSponsor(data) {
+      return data.keys().hasAll(['name', 'description', 'url', 'placement', 'priority', 'isSponsored', 'visibilityState', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['name', 'description', 'url', 'logoUrl', 'placement', 'badgeLabel', 'priority', 'startAt', 'endAt', 'isSponsored', 'visibilityState', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.name, 1, 100)
+        && isStringBounded(data.description, 0, 600)
+        && isStringBounded(data.url, 1, 500)
+        && (!('logoUrl' in data) || isStringBounded(data.logoUrl, 0, 600))
+        && data.placement in ['home_partners', 'home_banner', 'shop_banner']
+        && (!('badgeLabel' in data) || isStringBounded(data.badgeLabel, 0, 30))
+        && data.priority is number
+        && (!('startAt' in data) || data.startAt == null || data.startAt is timestamp)
+        && (!('endAt' in data) || data.endAt == null || data.endAt is timestamp)
+        && data.isSponsored is bool
+        && data.visibilityState in ['published', 'draft', 'trashed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['authorName', 'content', 'isApproved', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['authorName', 'context', 'content', 'isApproved', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.authorName, 1, 80)
+        && (!('context' in data) || isStringBounded(data.context, 0, 100))
+        && isStringBounded(data.content, 1, 1000)
+        && data.isApproved is bool
+        && data.isSample is bool
+        && data.visibilityState in ['published', 'draft', 'trashed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFaq(data) {
+      return data.keys().hasAll(['question', 'answer', 'order', 'visibilityState', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['question', 'answer', 'order', 'visibilityState', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.question, 1, 200)
+        && isStringBounded(data.answer, 1, 2000)
+        && data.order is number
+        && data.visibilityState in ['published', 'draft', 'trashed']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAnalyticsEvent(data) {
+      return data.keys().hasAll(['eventType', 'path', 'dateKey', 'createdAt'])
+        && data.keys().hasOnly(['eventType', 'path', 'targetType', 'targetId', 'targetLabel', 'dateKey', 'createdAt'])
+        && data.eventType in ['page_view', 'sponsor_click', 'action_click', 'dm_click', 'email_click']
+        && isStringBounded(data.path, 1, 120)
+        && (!('targetType' in data) || isStringBounded(data.targetType, 0, 60))
+        && (!('targetId' in data) || isStringBounded(data.targetId, 0, 128))
+        && (!('targetLabel' in data) || isStringBounded(data.targetLabel, 0, 120))
+        && data.dateKey is string && data.dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && data.createdAt == request.time;
+    }
+
+    // 4. Match Blocks
+
+    // Connection test doc
+    match /test/{docId} {
+      allow get: if docId == 'connection';
+      allow list, write: if false;
+    }
+
+    // Admin UID Allowlist
+    match /admins/{uid} {
+      allow get: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(uid)
+        && isValidAdminUser(incoming())
+        && incoming().uid == uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (isAdmin() || (isBootstrappedAdmin() && uid == request.auth.uid));
+      allow update: if isValidId(uid)
+        && isAdmin()
+        && isValidAdminUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'label', 'role', 'addedBy', 'updatedAt']);
+      allow delete: if isValidId(uid) && isAdmin() && uid != request.auth.uid;
+    }
+
+    // Site Config (published vs draft)
+    match /site_config/{configId} {
+      allow get: if isValidId(configId) && (configId == 'published' || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isValidId(configId)
+        && (configId == 'published' || configId == 'draft')
+        && isAdmin()
+        && isValidSiteConfig(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(configId)
+        && (configId == 'published' || configId == 'draft')
+        && isAdmin()
+        && isValidSiteConfig(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['brand', 'theme', 'homeActions', 'homeSections', 'communityLinks', 'seo', 'legal', 'eventsSettings', 'updatedAt', 'updatedBy']);
+      allow delete: if false;
+    }
+
+    // Products
+    match /products/{productId} {
+      allow get: if isValidId(productId) && (existing().visibilityState == 'published' || isAdmin());
+      allow list: if resource.data.visibilityState == 'published' || isAdmin();
+      allow create: if isValidId(productId)
+        && isAdmin()
+        && isValidProduct(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(productId)
+        && isAdmin()
+        && isValidProduct(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'price', 'currency', 'status', 'language', 'grade', 'setCode', 'description', 'images', 'dmPrompt', 'order', 'isFeatured', 'isSample', 'visibilityState', 'updatedAt']);
+      allow delete: if isValidId(productId) && isAdmin();
+    }
+
+    // Buyback Requests (Strict PII Isolation)
+    match /buyback_requests/{requestId} {
+      allow get: if isValidId(requestId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(requestId)
+        && isValidBuyback(incoming())
+        && incoming().status == '신규'
+        && (!('offerPrice' in incoming()) || incoming().offerPrice == '')
+        && (!('adminMemo' in incoming()) || incoming().adminMemo == '')
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(requestId)
+        && isAdmin()
+        && isValidBuyback(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'offerPrice', 'adminMemo', 'updatedAt']);
+      allow delete: if isValidId(requestId) && isAdmin();
+    }
+
+    // Posts / News
+    match /posts/{postId} {
+      allow get: if isValidId(postId) && (existing().visibilityState == 'published' || isAdmin());
+      allow list: if resource.data.visibilityState == 'published' || isAdmin();
+      allow create: if isValidId(postId)
+        && isAdmin()
+        && isValidPost(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(postId)
+        && isAdmin()
+        && isValidPost(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'slug', 'category', 'summary', 'content', 'coverImage', 'isPinned', 'isSample', 'scheduledAt', 'seoTitle', 'seoDescription', 'visibilityState', 'updatedAt']);
+      allow delete: if isValidId(postId) && isAdmin();
+    }
+
+    // Notices
+    match /notices/{noticeId} {
+      allow get: if isValidId(noticeId) && (existing().visibilityState == 'published' || isAdmin());
+      allow list: if resource.data.visibilityState == 'published' || isAdmin();
+      allow create: if isValidId(noticeId)
+        && isAdmin()
+        && isValidNotice(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(noticeId)
+        && isAdmin()
+        && isValidNotice(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'isPinned', 'isSample', 'scheduledAt', 'visibilityState', 'updatedAt']);
+      allow delete: if isValidId(noticeId) && isAdmin();
+    }
+
+    // Live & Events
+    match /events/{eventId} {
+      allow get: if isValidId(eventId) && (existing().visibilityState == 'published' || isAdmin());
+      allow list: if resource.data.visibilityState == 'published' || isAdmin();
+      allow create: if isValidId(eventId)
+        && isAdmin()
+        && isValidEvent(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(eventId)
+        && isAdmin()
+        && isValidEvent(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'startAt', 'endAt', 'locationOrPlatform', 'externalUrl', 'hideWhenEnded', 'isSample', 'visibilityState', 'updatedAt']);
+      allow delete: if isValidId(eventId) && isAdmin();
+    }
+
+    // Sponsors & Partnerships
+    match /sponsors/{sponsorId} {
+      allow get: if isValidId(sponsorId) && (existing().visibilityState == 'published' || isAdmin());
+      allow list: if resource.data.visibilityState == 'published' || isAdmin();
+      allow create: if isValidId(sponsorId)
+        && isAdmin()
+        && isValidSponsor(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(sponsorId)
+        && isAdmin()
+        && isValidSponsor(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'url', 'logoUrl', 'placement', 'badgeLabel', 'priority', 'startAt', 'endAt', 'isSponsored', 'visibilityState', 'updatedAt']);
+      allow delete: if isValidId(sponsorId) && isAdmin();
+    }
+
+    // Reviews
+    match /reviews/{reviewId} {
+      allow get: if isValidId(reviewId) && (existing().isApproved == true || isAdmin());
+      allow list: if resource.data.isApproved == true || isAdmin();
+      allow create: if isValidId(reviewId)
+        && isAdmin()
+        && isValidReview(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(reviewId)
+        && isAdmin()
+        && isValidReview(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['authorName', 'context', 'content', 'isApproved', 'isSample', 'visibilityState', 'updatedAt']);
+      allow delete: if isValidId(reviewId) && isAdmin();
+    }
+
+    // FAQs
+    match /faqs/{faqId} {
+      allow get: if isValidId(faqId) && (existing().visibilityState == 'published' || isAdmin());
+      allow list: if resource.data.visibilityState == 'published' || isAdmin();
+      allow create: if isValidId(faqId)
+        && isAdmin()
+        && isValidFaq(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(faqId)
+        && isAdmin()
+        && isValidFaq(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['question', 'answer', 'order', 'visibilityState', 'updatedAt']);
+      allow delete: if isValidId(faqId) && isAdmin();
+    }
+
+    // Analytics Events (Write-only for visitors, Read-only for admins)
+    match /analytics_events/{eventId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(eventId) && isValidAnalyticsEvent(incoming());
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  --nova-bg-main: #080A0D;
+  --nova-bg-secondary: #11151A;
+  --nova-bg-card: #171C23;
+  --nova-silver: #C5CBD3;
+  --nova-text-primary: #F3F4F6;
+  --nova-text-secondary: #929AA6;
+  --nova-border: #303741;
+  --nova-accent: #8068BA;
+  --nova-font-scale: 1;
+}
+
+html {
+  background-color: var(--nova-bg-main);
+  color: var(--nova-text-primary);
+  font-family: 'Pretendard Variable', 'Pretendard', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: calc(16px * var(--nova-font-scale));
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: var(--nova-bg-main);
+  color: var(--nova-text-primary);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.font-brand {
+  font-family: 'Syncopate', sans-serif;
+}
+
+.font-mono-tabular {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Smooth settling curve */
+.nova-transition {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-duration: 180ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

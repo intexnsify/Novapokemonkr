@@ -1,0 +1,306 @@
+import {
+  EventItem,
+  FaqItem,
+  Notice,
+  Post,
+  Product,
+  Review,
+  SiteConfig,
+  Sponsor,
+} from '../types/nova';
+
+export const LEGACY_DEFAULT_LOGO = '/src/assets/images/nova_emblem_logo_1794892739828.jpg';
+
+export const ASSET_IMAGES = {
+  logo: '/assets/aistudio/IMG_5596_2ce1846d.jpeg',
+  hero: '/src/assets/images/hero_nova_obsidian_1794892740287.jpg',
+  gradedSlab: '/src/assets/images/sample_graded_slab_1794892741867.jpg',
+  sealedBox: '/src/assets/images/sample_sealed_box_1794892741387.jpg',
+  newsEditorial: '/src/assets/images/sample_news_editorial_1794892741353.jpg',
+};
+
+export const DEFAULT_THEME = {
+  mainBg: '#080A0D',
+  secondaryBg: '#11151A',
+  cardBg: '#171C23',
+  silver: '#C5CBD3',
+  primaryText: '#F3F4F6',
+  secondaryText: '#929AA6',
+  border: '#303741',
+  accent: '#8068BA',
+  fontScale: 'md' as const,
+  buttonShape: 'rounded' as const,
+  sectionSpacing: 'normal' as const,
+  headingFont: 'Syncopate' as const,
+};
+
+export const DEFAULT_SITE_CONFIG: SiteConfig = {
+  brand: {
+    name: 'NOVA',
+    tagline: 'POKÉMON TCG · COLLECTION · COMMUNITY',
+    headline: '카드를 모으는 즐거움, NOVA와 함께.',
+    description:
+      '엄선된 Pokémon TCG 싱글·등급 카드와 미개봉 컬렉션을 큐레이션하며, 컬렉터를 위한 투명한 매입과 깊이 있는 아카이브를 제안합니다.',
+    logoUrl: ASSET_IMAGES.logo,
+    heroImageUrl: ASSET_IMAGES.hero,
+    instagramUrl: 'https://www.instagram.com/novapokemonkr/',
+    tiktokUrl: '',
+    youtubeUrl: '',
+    email: 'Jwkim9633@gmail.com',
+  },
+  theme: { ...DEFAULT_THEME },
+  homeActions: [
+    {
+      id: 'action_shop',
+      title: '카드 구매하기',
+      subtitle: '큐레이션된 등급 카드 · 싱글 · 미개봉 박스 카탈로그',
+      ctaLabel: '카탈로그 보기',
+      url: '/shop',
+      visible: true,
+      order: 0,
+    },
+    {
+      id: 'action_sell',
+      title: '카드 매입 신청',
+      subtitle: '사진 첨부로 간편하게 접수하는 비공개 매입 견적',
+      ctaLabel: '매입 접수하기',
+      url: '/sell',
+      visible: true,
+      order: 1,
+    },
+  ],
+  homeSections: [
+    { id: 'actions', label: '주요 액션 카드', visible: true, order: 0, limit: 4 },
+    { id: 'notices', label: '공지사항', visible: true, order: 1, limit: 3 },
+    { id: 'featured_products', label: '큐레이션 컬렉션', visible: true, order: 2, limit: 4 },
+    { id: 'sponsors', label: '협찬 및 파트너십', visible: true, order: 3, limit: 4 },
+    { id: 'news', label: '콘텐츠 & TCG 뉴스', visible: true, order: 4, limit: 3 },
+    { id: 'events', label: '라이브 & 이벤트', visible: true, order: 5, limit: 3 },
+    { id: 'community', label: 'NOVA 커뮤니티', visible: true, order: 6, limit: 6 },
+    { id: 'reviews', label: '컬렉터 후기', visible: true, order: 7, limit: 3 },
+    { id: 'faq', label: '자주 묻는 질문', visible: true, order: 8, limit: 8 },
+    { id: 'work_with_nova', label: '비즈니스 문의', visible: true, order: 9, limit: 1 },
+  ],
+  communityLinks: [
+    {
+      id: 'comm_instagram',
+      name: 'NOVA Official Instagram',
+      description: '신규 입고 소식, 등급 카드 프리뷰, DM 구매 및 실시간 문의 채널',
+      url: 'https://www.instagram.com/novapokemonkr/',
+      platform: 'instagram',
+      visible: true,
+      order: 0,
+    },
+    {
+      id: 'comm_discord',
+      name: 'NOVA Collector Discord',
+      description: '컬렉터 정보 교류 및 드롭 알림 (URL 등록 시 공개)',
+      url: '',
+      platform: 'discord',
+      visible: true,
+      order: 1,
+    },
+    {
+      id: 'comm_kakao',
+      name: '카카오 오픈채팅 라운지',
+      description: '국내 Pokémon TCG 컬렉터 소통 공간 (URL 등록 시 공개)',
+      url: '',
+      platform: 'kakao',
+      visible: true,
+      order: 2,
+    },
+  ],
+  seo: {
+    siteTitle: 'NOVA — Pokémon TCG Collection & Community',
+    metaDescription:
+      '카드를 모으는 즐거움, NOVA와 함께. 프리미엄 Pokémon TCG 싱글·등급 카드, 미개봉 박스 카탈로그, 카드 매입 신청, TCG 뉴스 및 커뮤니티.',
+    ogImageUrl: ASSET_IMAGES.hero,
+    twitterCard: 'summary_large_image',
+    keywords: 'NOVA, 포켓몬 카드, Pokémon TCG, 등급카드, PSA, BGS, 카드 매입, REPACK',
+    organizationName: 'NOVA',
+  },
+  legal: {
+    privacyPolicy: `NOVA(이하 '브랜드')는 카드 매입 신청 및 문의 응대를 위해 필요한 최소한의 정보만을 수집합니다.
+
+1. 수집 항목: 매입 신청 시 제출하는 카드 정보, 첨부 이미지, 선택적 연락처
+2. 이용 목적: 매입 검토, 견적 제안, 문의 회신 및 거래 진행
+3. 보관 및 열람 제한: 매입 신청 정보 및 사진은 일반 방문자에게 절대 공개되지 않으며, 인증된 관리자만 비공개로 열람합니다.
+4. 파기 요청: Jwkim9633@gmail.com 으로 연락 주시면 확인 후 지체 없이 파기합니다.`,
+    termsOfUse: `1. NOVA 웹사이트에 게시된 모든 상품은 현재 Instagram DM(@novapokemonkr)을 통한 1:1 확인 및 상담 후 거래가 진행됩니다.
+2. 실시간 재고 변동에 따라 카탈로그 상태가 '예약중' 또는 '판매완료'로 변경될 수 있습니다.
+3. 협찬 및 파트너십 게시물은 '협찬' 표기를 통해 명확히 구분하여 안내합니다.`,
+    shippingRefundPolicy: `1. 배송 안내: 모든 등급 카드 및 싱글 카드는 슬리브·탑로더·완충재를 적용해 안전하게 포장 후 발송됩니다.
+2. 발송 일정: 입금 및 거래 확정 후 영업일 기준 1~2일 이내 발송되며 송장 번호를 DM으로 안내해 드립니다.
+3. 환불 및 교환: 수집용 TCG 카드 특성상 개봉·훼손 또는 단순 변심에 의한 교환·환불은 어려우며, 배송 중 파손 또는 오배송 시 수령 직후 개봉 영상과 함께 문의해 주세요.`,
+    businessInfo: {
+      companyName: '',
+      representative: '',
+      registrationNumber: '',
+      ecommerceNumber: '',
+      address: '',
+      supportContact: 'Jwkim9633@gmail.com',
+    },
+  },
+  eventsSettings: {
+    hideEndedEventsGlobally: false,
+  },
+};
+
+export const INITIAL_SPONSORS_SEED: Omit<Sponsor, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'sponsor_repack',
+    name: 'REPACK',
+    description: '뽑는 설렘부터 모으는 즐거움까지, 마음껏 즐기는 컬렉팅. 믿을 수 있는 컬렉팅의 시작, REPACK.',
+    url: 'https://www.repack.co.kr/',
+    logoUrl: '',
+    placement: 'home_partners',
+    badgeLabel: '협찬',
+    priority: 1,
+    isSponsored: true,
+    visibilityState: 'published',
+  },
+];
+
+export const INITIAL_FAQS_SEED: Omit<FaqItem, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'faq_buyback',
+    question: '카드 매입 문의는 어떻게 진행되나요?',
+    answer:
+      '상단 메뉴 또는 메인 화면의 [카드 매입 신청] 페이지에서 카드 이름, 언어, 상태/등급, 희망 매입가, 사진(최대 4장)을 첨부해 접수해 주세요. 제출된 정보는 비공개로 안전하게 저장되며 관리자 검토 후 안내해 드립니다.',
+    order: 0,
+    visibilityState: 'published',
+  },
+  {
+    id: 'faq_purchase',
+    question: '판매 중인 카드는 어디서 확인하고 구매하나요?',
+    answer:
+      '[카드 구매하기] 카탈로그에서 싱글카드, 등급카드, 미개봉 박스 등 카테고리와 가격순 정렬로 상품을 확인하실 수 있습니다. 현재 결제는 지원하지 않으며 각 상품 상세 페이지의 Instagram DM 문의를 통해 실물 확인 및 구매를 진행합니다.',
+    order: 1,
+    visibilityState: 'published',
+  },
+  {
+    id: 'faq_shipping',
+    question: '배송 및 포장은 어떻게 이루어지나요?',
+    answer:
+      '등급 카드와 고가 싱글 카드는 전용 슬리브, 탑로더 또는 하드 케이스와 다중 완충 포장을 적용하여 안전하게 발송됩니다. 상세한 배송 및 환불 기준은 하단 [배송·환불 안내] 페이지에서 확인하실 수 있습니다.',
+    order: 2,
+    visibilityState: 'published',
+  },
+  {
+    id: 'faq_partnership',
+    question: '광고, 콘텐츠 협업 및 협찬 문의는 어디로 보내나요?',
+    answer:
+      '메인 하단 [WORK WITH NOVA] 섹션의 이메일 작성(Jwkim9633@gmail.com), Gmail 작성 또는 Instagram DM을 통해 행사·콘텐츠·브랜드 파트너십 제안을 보내주실 수 있습니다.',
+    order: 3,
+    visibilityState: 'published',
+  },
+];
+
+export const INITIAL_SAMPLE_PRODUCTS: Omit<Product, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'sample_prod_slab_01',
+    title: '리자몽 ex SAR (흑염의 지배자) PSA 10',
+    category: '등급카드',
+    price: 380000,
+    currency: 'KRW',
+    status: '판매중',
+    language: '한국어',
+    grade: 'PSA 10',
+    setCode: 'SV3 134/108',
+    description:
+      '[예시 상품] PSA 10 정식 감정 슬랩 상태의 샘플 카드입니다. 실제 거래용 상품이 아닌 카탈로그 구성 예시이며, 관리자 대시보드에서 일괄 삭제하거나 수정할 수 있습니다.',
+    images: [ASSET_IMAGES.gradedSlab],
+    dmPrompt: '리자몽 ex SAR PSA 10 (SAMPLE) 구매 문의드립니다.',
+    order: 0,
+    isFeatured: true,
+    isSample: true,
+    visibilityState: 'published',
+  },
+  {
+    id: 'sample_prod_box_02',
+    title: '스칼렛&바이올렛 하이클래스 팩 미개봉 박스',
+    category: '미개봉 박스',
+    price: 115000,
+    currency: 'KRW',
+    status: '판매중',
+    language: '일본어',
+    grade: '슈링크 밀봉',
+    setCode: 'SV4a',
+    description:
+      '[예시 상품] 공장 출고 슈링크 상태의 미개봉 컬렉터 박스 예시입니다. 관리자 대시보드에서 클릭 한 번으로 샘플 데이터를 삭제할 수 있습니다.',
+    images: [ASSET_IMAGES.sealedBox],
+    dmPrompt: '하이클래스 팩 미개봉 박스 (SAMPLE) 구매 문의드립니다.',
+    order: 1,
+    isFeatured: true,
+    isSample: true,
+    visibilityState: 'published',
+  },
+];
+
+export const INITIAL_SAMPLE_NOTICES: Omit<Notice, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'sample_notice_01',
+    title: 'NOVA 공식 웹사이트 및 매입 접수 시스템 오픈 안내',
+    content:
+      'NOVA의 공식 카탈로그 및 비공개 카드 매입 접수 시스템이 새롭게 오픈했습니다. 상품 구매는 Instagram DM(@novapokemonkr)을 통해 안전하게 안내해 드립니다.',
+    isPinned: true,
+    isSample: true,
+    visibilityState: 'published',
+  },
+];
+
+export const INITIAL_SAMPLE_POSTS: Omit<Post, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'sample_post_archival_guide',
+    title: '하이엔드 등급 카드 보관과 아카이브 관리 기준',
+    slug: 'sample-archival-grading-care',
+    category: '컬렉팅 가이드',
+    summary:
+      'PSA·BGS 슬랩과 미개봉 박스를 변색과 습기로부터 안전하게 보존하는 환경 기준을 정리했습니다.',
+    content: `## 컬렉터블 아카이브의 첫 번째 기준
+
+프리미엄 Pokémon TCG 카드를 장기 보존할 때는 온도, 습도, 자외선 차단이 핵심입니다.
+
+### 권장 보관 환경
+- **상대 습도**: 40% ~ 50% 유지 (과도한 건조나 고습 방지)
+- **직사광선 차단**: UV 차단 아크릴 케이스 또는 암실 보관함 활용
+- **슬리브 이중 보호**: 산성 성분(Acid-free)이 없는 아카이브 전용 슬리브 사용
+
+> 본 게시물은 NOVA 아카이브 구성을 보여주기 위한 **SAMPLE** 콘텐츠입니다. 관리자 대시보드에서 언제든 수정하거나 일괄 삭제할 수 있습니다.`,
+    coverImage: ASSET_IMAGES.newsEditorial,
+    isPinned: true,
+    isSample: true,
+    seoTitle: '하이엔드 등급 카드 보관 가이드 | NOVA',
+    seoDescription: 'PSA·BGS 슬랩과 미개봉 박스를 안전하게 보존하는 컬렉팅 가이드.',
+    visibilityState: 'published',
+  },
+];
+
+export const INITIAL_SAMPLE_EVENTS: Omit<EventItem, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'sample_event_01',
+    title: 'NOVA 컬렉터즈 나이트 라이브 프리뷰',
+    description:
+      '신규 입고 등급 카드 라인업 소개 및 Q&A 세션 (Asia/Seoul KST 기준 예시 일정)',
+    startAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
+    locationOrPlatform: 'Instagram Live (@novapokemonkr)',
+    externalUrl: 'https://www.instagram.com/novapokemonkr/',
+    hideWhenEnded: true,
+    isSample: true,
+    visibilityState: 'published',
+  },
+];
+
+export const INITIAL_SAMPLE_REVIEWS: Omit<Review, 'createdAt' | 'updatedAt'>[] = [
+  {
+    id: 'sample_review_01',
+    authorName: '컬렉터 K***',
+    context: '등급 카드 구매 (예시)',
+    content:
+      '슬랩 실물 상태를 DM으로 꼼꼼하게 사진과 영상으로 확인해 주셔서 신뢰하고 구매할 수 있었습니다. 포장 마감도 매우 깔끔했습니다.',
+    isApproved: true,
+    isSample: true,
+    visibilityState: 'published',
+  },
+];

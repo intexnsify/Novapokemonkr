@@ -1,0 +1,252 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized admin UID entry in the Firestore allowlist.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 200 },
+        "label": { "type": "string", "maxLength": 100 },
+        "role": { "type": "string", "enum": ["admin"] },
+        "addedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt", "updatedAt"]
+    },
+    "SiteConfig": {
+      "title": "SiteConfig",
+      "description": "Published or draft site configuration including brand, theme, layout, links, SEO, and legal texts.",
+      "type": "object",
+      "properties": {
+        "brand": { "type": "object" },
+        "theme": { "type": "object" },
+        "homeActions": { "type": "array" },
+        "homeSections": { "type": "array" },
+        "communityLinks": { "type": "array" },
+        "seo": { "type": "object" },
+        "legal": { "type": "object" },
+        "eventsSettings": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["brand", "theme", "homeActions", "homeSections", "communityLinks", "seo", "legal", "updatedAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Pokémon TCG product catalog item.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "category": { "type": "string", "enum": ["싱글카드", "등급카드", "미개봉 박스", "팩", "기타"] },
+        "price": { "type": "number" },
+        "currency": { "type": "string", "enum": ["KRW"] },
+        "status": { "type": "string", "enum": ["판매중", "예약중", "판매완료"] },
+        "language": { "type": "string", "maxLength": 40 },
+        "grade": { "type": "string", "maxLength": 60 },
+        "setCode": { "type": "string", "maxLength": 60 },
+        "description": { "type": "string", "maxLength": 4000 },
+        "images": { "type": "array" },
+        "dmPrompt": { "type": "string", "maxLength": 300 },
+        "order": { "type": "number" },
+        "isFeatured": { "type": "boolean" },
+        "isSample": { "type": "boolean" },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "category", "price", "status", "images", "order", "isSample", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "BuybackRequest": {
+      "title": "BuybackRequest",
+      "description": "Private card buyback submission submitted by visitors and managed by admins.",
+      "type": "object",
+      "properties": {
+        "cardName": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "language": { "type": "string", "enum": ["한국어", "일본어", "영어", "기타"] },
+        "condition": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "desiredPrice": { "type": "string", "maxLength": 80 },
+        "quantity": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 2000 },
+        "contact": { "type": "string", "maxLength": 140 },
+        "photoUrls": { "type": "array" },
+        "status": { "type": "string", "enum": ["신규", "검토 중", "가격 제안", "협의 완료", "거래 완료", "거절"] },
+        "offerPrice": { "type": "string", "maxLength": 80 },
+        "adminMemo": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["cardName", "language", "condition", "quantity", "photoUrls", "status", "createdAt", "updatedAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "TCG editorial content and news article.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "slug": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "category": { "type": "string", "maxLength": 50 },
+        "summary": { "type": "string", "maxLength": 400 },
+        "content": { "type": "string", "maxLength": 30000 },
+        "coverImage": { "type": "string", "maxLength": 600 },
+        "isPinned": { "type": "boolean" },
+        "isSample": { "type": "boolean" },
+        "scheduledAt": { "type": "string", "format": "date-time" },
+        "seoTitle": { "type": "string", "maxLength": 120 },
+        "seoDescription": { "type": "string", "maxLength": 300 },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "category", "content", "isPinned", "isSample", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "description": "Storefront announcement with pin and scheduled publishing.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "content": { "type": "string", "maxLength": 4000 },
+        "isPinned": { "type": "boolean" },
+        "isSample": { "type": "boolean" },
+        "scheduledAt": { "type": "string", "format": "date-time" },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "isPinned", "isSample", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "EventItem": {
+      "title": "EventItem",
+      "description": "Live stream and community event displayed in KST.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "startAt": { "type": "string", "format": "date-time" },
+        "endAt": { "type": "string", "format": "date-time" },
+        "locationOrPlatform": { "type": "string", "maxLength": 120 },
+        "externalUrl": { "type": "string", "maxLength": 500 },
+        "hideWhenEnded": { "type": "boolean" },
+        "isSample": { "type": "boolean" },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "startAt", "endAt", "hideWhenEnded", "isSample", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "Sponsor": {
+      "title": "Sponsor",
+      "description": "Sponsor and partnership banner (including REPACK).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 600 },
+        "url": { "type": "string", "maxLength": 500 },
+        "logoUrl": { "type": "string", "maxLength": 600 },
+        "placement": { "type": "string", "enum": ["home_partners", "home_banner", "shop_banner"] },
+        "badgeLabel": { "type": "string", "maxLength": 30 },
+        "priority": { "type": "number" },
+        "startAt": { "type": "string", "format": "date-time" },
+        "endAt": { "type": "string", "format": "date-time" },
+        "isSponsored": { "type": "boolean" },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "description", "url", "placement", "priority", "isSponsored", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "Collector review & trust item (only approved shown publicly).",
+      "type": "object",
+      "properties": {
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "context": { "type": "string", "maxLength": 100 },
+        "content": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "isApproved": { "type": "boolean" },
+        "isSample": { "type": "boolean" },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorName", "content", "isApproved", "isSample", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "FaqItem": {
+      "title": "FaqItem",
+      "description": "Frequently asked question accordion entry.",
+      "type": "object",
+      "properties": {
+        "question": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "answer": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "order": { "type": "number" },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["question", "answer", "order", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "AnalyticsEvent": {
+      "title": "AnalyticsEvent",
+      "description": "Anonymous page view and link click event for admin analytics.",
+      "type": "object",
+      "properties": {
+        "eventType": { "type": "string", "enum": ["page_view", "sponsor_click", "action_click", "dm_click", "email_click"] },
+        "path": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "targetType": { "type": "string", "maxLength": 60 },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "targetLabel": { "type": "string", "maxLength": 120 },
+        "dateKey": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["eventType", "path", "dateKey", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin UID allowlist for /admin dashboard access."
+    },
+    "/site_config/{configId}": {
+      "schema": { "$ref": "#/entities/SiteConfig" },
+      "description": "Site configuration documents ('published' and 'draft')."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Pokémon TCG product catalog."
+    },
+    "/buyback_requests/{requestId}": {
+      "schema": { "$ref": "#/entities/BuybackRequest" },
+      "description": "Private visitor card buyback submissions."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Editorial TCG news and articles."
+    },
+    "/notices/{noticeId}": {
+      "schema": { "$ref": "#/entities/Notice" },
+      "description": "Announcements and pinned notices."
+    },
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/EventItem" },
+      "description": "Live streams and events in KST."
+    },
+    "/sponsors/{sponsorId}": {
+      "schema": { "$ref": "#/entities/Sponsor" },
+      "description": "Sponsors and partner placements (e.g., REPACK)."
+    },
+    "/reviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/Review" },
+      "description": "Collector reviews and trust quotes."
+    },
+    "/faqs/{faqId}": {
+      "schema": { "$ref": "#/entities/FaqItem" },
+      "description": "FAQ accordion items."
+    },
+    "/analytics_events/{eventId}": {
+      "schema": { "$ref": "#/entities/AnalyticsEvent" },
+      "description": "Anonymous visitor page view and click events."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "NOVA — Pokémon TCG Collection & Community",
+  "description": "카드를 모으는 즐거움, NOVA와 함께. 프리미엄 Pokémon TCG 컬렉터블 스토어, 카드 매입, 뉴스 및 커뮤니티.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

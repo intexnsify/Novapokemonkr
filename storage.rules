@@ -1,0 +1,41 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default deny all
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && (
+          firestore.exists(/databases/ai-studio-8de423d6-9d23-4651-ae7a-555ca0d7718e/documents/admins/$(request.auth.uid)) ||
+          request.auth.token.email.lower() == 'jwkim9633@gmail.com'
+        );
+    }
+
+    // Buyback private photos: visitors can upload up to 5MB image files, only admins can read/delete
+    match /buybacks/{submissionId}/{fileName} {
+      allow create: if submissionId.matches('^[a-zA-Z0-9_\\-]{1,128}$')
+        && fileName.matches('^[a-zA-Z0-9_.\\-]{1,128}$')
+        && request.resource != null
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+
+    // Public brand, product, post, sponsor assets: public read, admin write (<= 10MB image)
+    match /public/{folder}/{fileName} {
+      allow read: if folder in ['brand', 'products', 'posts', 'sponsors', 'seo'];
+      allow create, update: if isAdmin()
+        && folder in ['brand', 'products', 'posts', 'sponsors', 'seo']
+        && fileName.matches('^[a-zA-Z0-9_.\\-]{1,128}$')
+        && request.resource != null
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin();
+    }
+  }
+}
