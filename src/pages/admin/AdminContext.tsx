@@ -17,6 +17,7 @@ import {
   OperationType,
   testConnection,
 } from '../../lib/firebase';
+import { normalizeHomeSections } from '../../lib/utils';
 import {
   AdminUser,
   AnalyticsEvent,
@@ -26,6 +27,8 @@ import {
   Notice,
   Post,
   Product,
+  RetailCampaign,
+  RetailDrop,
   Review,
   SiteConfig,
   Sponsor,
@@ -35,6 +38,7 @@ export type AdminAuthStatus = 'loading' | 'signed_out' | 'unauthorized' | 'error
 
 export type AdminMenuId =
   | 'dashboard'
+  | 'drops'
   | 'brand'
   | 'theme'
   | 'home_layout'
@@ -83,6 +87,8 @@ interface AdminContextValue {
   sponsors: Sponsor[];
   reviews: Review[];
   faqs: FaqItem[];
+  retailCampaigns: RetailCampaign[];
+  retailDrops: RetailDrop[];
   analyticsEvents: AnalyticsEvent[];
   admins: AdminUser[];
 }
@@ -97,6 +103,10 @@ function normalizeSiteConfig(data: Partial<SiteConfig>): SiteConfig {
   return {
     ...DEFAULT_SITE_CONFIG,
     ...data,
+    homeSections: normalizeHomeSections(
+      data.homeSections,
+      DEFAULT_SITE_CONFIG.homeSections
+    ),
     brand,
     theme: { ...DEFAULT_SITE_CONFIG.theme, ...(data.theme || {}) },
     seo: { ...DEFAULT_SITE_CONFIG.seo, ...(data.seo || {}) },
@@ -117,13 +127,40 @@ function normalizeSiteConfig(data: Partial<SiteConfig>): SiteConfig {
   };
 }
 
+const VALID_ADMIN_MENUS: AdminMenuId[] = [
+  'dashboard',
+  'drops',
+  'brand',
+  'theme',
+  'home_layout',
+  'community',
+  'products',
+  'buybacks',
+  'posts',
+  'notices',
+  'sponsors',
+  'events',
+  'reviews',
+  'faqs',
+  'analytics',
+  'seo',
+  'backup',
+  'admins',
+];
+
+function getInitialAdminMenu(): AdminMenuId {
+  if (typeof window === 'undefined') return 'dashboard';
+  const param = new URLSearchParams(window.location.search).get('tab') as AdminMenuId | null;
+  return param && VALID_ADMIN_MENUS.includes(param) ? param : 'dashboard';
+}
+
 export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authStatus, setAuthStatus] = useState<AdminAuthStatus>('loading');
   const [authError, setAuthError] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [retryTick, setRetryTick] = useState(0);
 
-  const [activeMenu, setActiveMenuRaw] = useState<AdminMenuId>('dashboard');
+  const [activeMenu, setActiveMenuRaw] = useState<AdminMenuId>(getInitialAdminMenu);
   const [draftConfig, setDraftConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
@@ -138,6 +175,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
+  const [retailCampaigns, setRetailCampaigns] = useState<RetailCampaign[]>([]);
+  const [retailDrops, setRetailDrops] = useState<RetailDrop[]>([]);
   const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEvent[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
 
@@ -355,6 +394,28 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         (err) => handleFirestoreError(err, OperationType.LIST, 'admins')
       )
     );
+    unsubs.push(
+      onSnapshot(
+        collection(db, 'retail_campaigns'),
+        (s) =>
+          setRetailCampaigns(
+            s.docs.map((d) => ({ id: d.id, ...d.data() } as RetailCampaign))
+          ),
+        (err) => handleFirestoreError(err, OperationType.LIST, 'retail_campaigns')
+      )
+    );
+    unsubs.push(
+      onSnapshot(
+        collection(db, 'retail_drops'),
+        (s) =>
+          setRetailDrops(
+            s.docs
+              .map((d) => ({ id: d.id, ...d.data() } as RetailDrop))
+              .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+          ),
+        (err) => handleFirestoreError(err, OperationType.LIST, 'retail_drops')
+      )
+    );
 
     return () => unsubs.forEach((u) => u());
   }, [authStatus, user]);
@@ -365,7 +426,15 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setAuthError(`Google 로그인 중 오류가 발생했습니다: ${msg}`);
+      if (msg.includes('popup-blocked')) {
+        setAuthError(
+          '브라우저에서 로그인 팝업이 차단되었습니다. Safari 팝업 차단을 허용하거나 아래 [새 창에서 관리자 로그인 열기]를 눌러 로그인해 주세요.'
+        );
+      } else if (msg.includes('popup-closed-by-user')) {
+        setAuthError('로그인 창이 닫혔습니다. 다시 시도해 주세요.');
+      } else {
+        setAuthError(`Google 로그인 중 오류가 발생했습니다: ${msg}`);
+      }
     }
   };
 
@@ -476,6 +545,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         sponsors,
         reviews,
         faqs,
+        retailCampaigns,
+        retailDrops,
         analyticsEvents,
         admins,
       }}

@@ -76,6 +76,15 @@ export const AdminGate: React.FC<{ children: React.ReactNode }> = ({ children })
             <span>Google 계정으로 로그인</span>
           </button>
 
+          <a
+            href="/admin?tab=drops"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full min-h-[40px] px-4 py-2 border border-[#303741] rounded-md text-xs text-[#C5CBD3] hover:border-[#C5CBD3] flex items-center justify-center"
+          >
+            미리보기 안에서 로그인이 안 되면 새 창에서 열기 ↗
+          </a>
+
           <div className="pt-2 border-t border-[#303741] flex justify-between items-center text-xs text-[#929AA6]">
             <span>허용 계정만 대시보드 열람 가능</span>
             <Link to="/" className="hover:text-[#F3F4F6]">

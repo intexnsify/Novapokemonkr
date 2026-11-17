@@ -1,35 +1,66 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Pin, Search } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { trackAnalyticsEvent } from '../lib/analytics';
-import { formatKST } from '../lib/utils';
+import { formatKST, isRetailRaffleCategory } from '../lib/utils';
 import { SafeImage } from '../components/SafeImage';
 import { SeoManager } from '../components/SeoManager';
+import { SponsorBanner } from '../components/SponsorBanner';
 
 export const NewsPage: React.FC = () => {
-  const { posts, isPreviewDraft } = useSite();
-  const [selectedCat, setSelectedCat] = useState<string>('전체');
+  const { posts, sponsors, isPreviewDraft } = useSite();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category') || '전체';
+  const [selectedCat, setSelectedCat] = useState<string>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     trackAnalyticsEvent('page_view', '/news');
   }, []);
 
+  useEffect(() => {
+    const paramCat = searchParams.get('category') || '전체';
+    setSelectedCat(paramCat);
+  }, [searchParams]);
+
   const previewSuffix = isPreviewDraft ? '?preview=draft' : '';
+  const newsInlineSponsors = useMemo(
+    () => sponsors.filter((s) => s.placement === 'news_inline'),
+    [sponsors]
+  );
 
   const categories = useMemo(() => {
-    const set = new Set<string>(['전체']);
+    const set = new Set<string>(['전체', '정가 구매·추첨', 'TCG 뉴스']);
     posts.forEach((p) => {
       if (p.category) set.add(p.category);
     });
     return Array.from(set);
   }, [posts]);
 
+  const handleSelectCategory = (cat: string) => {
+    setSelectedCat(cat);
+    const next = new URLSearchParams(searchParams);
+    if (cat === '전체') {
+      next.delete('category');
+    } else {
+      next.set('category', cat);
+    }
+    setSearchParams(next, { replace: true });
+  };
+
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return posts.filter((p) => {
-      if (selectedCat !== '전체' && p.category !== selectedCat) return false;
+      if (selectedCat !== '전체') {
+        if (selectedCat === '정가 구매·추첨') {
+          if (!isRetailRaffleCategory(p.category) && p.category !== selectedCat) return false;
+        } else if (selectedCat === 'TCG 뉴스') {
+          if (isRetailRaffleCategory(p.category)) return false;
+        } else if (p.category !== selectedCat) {
+          return false;
+        }
+      }
       if (!q) return true;
       return (
         p.title.toLowerCase().includes(q) ||
@@ -64,7 +95,7 @@ export const NewsPage: React.FC = () => {
               <button
                 key={cat}
                 type="button"
-                onClick={() => setSelectedCat(cat)}
+                onClick={() => handleSelectCategory(cat)}
                 className={`min-h-[40px] px-3.5 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 border transition-colors ${
                   selectedCat === cat
                     ? 'bg-[#C5CBD3] text-[#080A0D] border-[#C5CBD3]'
@@ -145,6 +176,21 @@ export const NewsPage: React.FC = () => {
                   <span className="text-xs font-medium text-[#C5CBD3]">아티클 읽기 →</span>
                 </div>
               </Link>
+            )}
+
+            {newsInlineSponsors.length > 0 && (
+              <div className="space-y-3">
+                {newsInlineSponsors.map((sp) => (
+                  <SponsorBanner
+                    key={sp.id}
+                    sponsor={sp}
+                    placement="news_inline"
+                    path="/news"
+                    variant="inline_ad"
+                    previewSuffix={previewSuffix}
+                  />
+                ))}
+              </div>
             )}
 
             {restPosts.length > 0 && (

@@ -13,9 +13,9 @@ export function getButtonRadiusClass(shape: 'sharp' | 'rounded' | 'pill' | undef
 }
 
 export function getSectionSpacingClass(spacing: 'compact' | 'normal' | 'relaxed' | undefined): string {
-  if (spacing === 'compact') return 'py-10 md:py-12';
-  if (spacing === 'relaxed') return 'py-16 md:py-24';
-  return 'py-12 md:py-16';
+  if (spacing === 'compact') return 'py-6 md:py-8';
+  if (spacing === 'relaxed') return 'py-11 md:py-14';
+  return 'py-8 md:py-11';
 }
 
 export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -28,10 +28,11 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
   const dmUrl = getInstagramDmUrl(config.brand.instagramUrl);
 
   const navItems = [
+    { label: '정가·추첨', to: '/drops' },
+    { label: 'TCG 뉴스', to: '/news' },
     { label: '스토어', to: '/shop' },
     { label: '매입 신청', to: '/sell' },
-    { label: '뉴스', to: '/news' },
-    { label: '이벤트', to: '/events' },
+    { label: '협찬·광고', to: '/sponsors' },
   ];
 
   const isActive = (path: string) =>
@@ -238,13 +239,13 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
 
       {/* Footer */}
       <footer
-        className="border-t mt-16 safe-bottom"
+        className="border-t mt-6 safe-bottom"
         style={{
           backgroundColor: 'var(--nova-bg-secondary)',
           borderColor: 'var(--nova-border)',
         }}
       >
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 space-y-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-8">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-8">
             <div className="space-y-2 max-w-md">
               <p className="font-brand text-base font-bold tracking-[0.2em]" style={{ color: 'var(--nova-text-primary)' }}>
@@ -265,6 +266,16 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
                 </p>
                 <ul className="space-y-2" style={{ color: 'var(--nova-text-secondary)' }}>
                   <li>
+                    <Link to="/drops" className="hover:text-[#F3F4F6] transition-colors">
+                      정가 구매 · 추첨
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/news" className="hover:text-[#F3F4F6] transition-colors">
+                      TCG 뉴스
+                    </Link>
+                  </li>
+                  <li>
                     <Link to="/shop" className="hover:text-[#F3F4F6] transition-colors">
                       카드 구매하기
                     </Link>
@@ -272,11 +283,6 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
                   <li>
                     <Link to="/sell" className="hover:text-[#F3F4F6] transition-colors">
                       카드 매입 신청
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/news" className="hover:text-[#F3F4F6] transition-colors">
-                      TCG 뉴스
                     </Link>
                   </li>
                   <li>
@@ -310,6 +316,11 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
                   <li>
                     <Link to="/legal/business" className="hover:text-[#F3F4F6] transition-colors">
                       사업자 정보
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/sponsors" className="hover:text-[#F3F4F6] transition-colors">
+                      협찬 · 광고 안내
                     </Link>
                   </li>
                 </ul>

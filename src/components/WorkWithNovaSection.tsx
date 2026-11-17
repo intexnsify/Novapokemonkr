@@ -43,25 +43,25 @@ export const WorkWithNovaSection: React.FC = () => {
         borderColor: 'var(--nova-border)',
       }}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-14 md:py-20">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14">
         <div
-          className="border p-6 sm:p-10 md:p-12 rounded-lg"
+          className="border p-6 sm:p-8 md:p-10 rounded-lg"
           style={{
             backgroundColor: 'var(--nova-bg-card)',
             borderColor: 'var(--nova-border)',
           }}
         >
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-            <div className="space-y-3 max-w-xl">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-7">
+            <div className="space-y-2.5 max-w-xl">
               <p className="font-brand text-xs tracking-[0.22em]" style={{ color: 'var(--nova-silver)' }}>
-                WORK WITH NOVA
+                SPONSORSHIP &amp; MEDIA PARTNERSHIP
               </p>
-              <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight" style={{ color: 'var(--nova-text-primary)' }}>
-                광고 · 콘텐츠 협업 · 행사 · 파트너십 문의
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight" style={{ color: 'var(--nova-text-primary)' }}>
+                공식 협찬 · 배너 광고 · 콘텐츠 협업 문의
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: 'var(--nova-text-secondary)' }}>
-                브랜드 스폰서십, 카드 언박싱 및 컬렉션 콘텐츠, 오프라인 팝업·대회 협업 문의를 환영합니다.
-                담당 이메일 또는 공식 Instagram DM으로 편하게 연락해 주세요.
+                메인 스폰서 배너 입점, 포켓몬카드 발매·추첨 파트너십, 언박싱 콘텐츠 및 오프라인 대회·팝업 제휴 문의를 환영합니다.
+                담당 이메일 또는 공식 Instagram DM으로 제안서를 보내주세요.
               </p>
               <p className="font-mono-tabular text-sm pt-1" style={{ color: 'var(--nova-silver)' }}>
                 {email}

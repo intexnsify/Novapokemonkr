@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   Sparkles,
   Tag,
+  Ticket,
   X,
 } from 'lucide-react';
 import { AdminMenuId, AdminProvider, useAdmin } from './AdminContext';
@@ -45,6 +46,7 @@ import {
   ReviewsTab,
   SponsorsTab,
 } from './AdminContentTabs';
+import { DropsTab } from './AdminDropsTab';
 
 const MENU_ITEMS: { id: AdminMenuId; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard', label: '1. 대시보드', icon: <LayoutDashboard size={15} /> },
@@ -64,6 +66,7 @@ const MENU_ITEMS: { id: AdminMenuId; label: string; icon: React.ReactNode }[] = 
   { id: 'seo', label: '15. SEO/공유 설정', icon: <Globe size={15} /> },
   { id: 'backup', label: '16. 백업/휴지통', icon: <Archive size={15} /> },
   { id: 'admins', label: '17. 관리자 설정', icon: <ShieldCheck size={15} /> },
+  { id: 'drops', label: '18. 정가·추첨 관리', icon: <Ticket size={15} /> },
 ];
 
 const AdminShell: React.FC = () => {
@@ -131,6 +134,8 @@ const AdminShell: React.FC = () => {
         return <BackupTab />;
       case 'admins':
         return <AdminsTab />;
+      case 'drops':
+        return <DropsTab />;
       default:
         return <DashboardTab />;
     }

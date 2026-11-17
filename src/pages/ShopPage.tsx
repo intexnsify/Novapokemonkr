@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { trackAnalyticsEvent } from '../lib/analytics';
 import { formatKRW, getInstagramDmUrl } from '../lib/utils';
 import { ProductCategory } from '../types/nova';
 import { SafeImage } from '../components/SafeImage';
 import { SeoManager } from '../components/SeoManager';
+import { SponsorBanner } from '../components/SponsorBanner';
 
 const CATEGORIES: ('전체' | ProductCategory)[] = [
   '전체',
@@ -80,39 +81,20 @@ export const ShopPage: React.FC = () => {
         </div>
 
         {/* Optional Shop Sponsor Banner */}
-        {shopBanners.map((sp) => (
-          <a
-            key={sp.id}
-            href={sp.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() =>
-              trackAnalyticsEvent('sponsor_click', '/shop', {
-                targetType: 'shop_banner',
-                targetId: sp.id,
-                targetLabel: sp.name,
-              })
-            }
-            className="block border border-[#303741] rounded-lg p-5 bg-[#171C23] hover:border-[#C5CBD3]/60 transition-colors"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-brand text-sm font-bold tracking-[0.14em] text-[#F3F4F6]">
-                    {sp.name}
-                  </span>
-                  {sp.isSponsored && (
-                    <span className="px-2 py-0.5 text-[11px] border border-[#8068BA]/60 bg-[#8068BA]/15 text-[#C5CBD3] rounded">
-                      {sp.badgeLabel || '협찬'}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs sm:text-sm text-[#929AA6]">{sp.description}</p>
-              </div>
-              <ExternalLink size={16} className="text-[#C5CBD3] shrink-0" />
-            </div>
-          </a>
-        ))}
+        {shopBanners.length > 0 && (
+          <div className="space-y-3">
+            {shopBanners.map((sp) => (
+              <SponsorBanner
+                key={sp.id}
+                sponsor={sp}
+                placement="shop_banner"
+                path="/shop"
+                variant="shop_ad"
+                previewSuffix={previewSuffix}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Search, Category Filter & Price Sort Controls */}
         <div className="space-y-4">

@@ -14,6 +14,8 @@ import {
 import {
   DEFAULT_SITE_CONFIG,
   INITIAL_FAQS_SEED,
+  INITIAL_RETAIL_CAMPAIGNS_SEED,
+  INITIAL_RETAIL_DROPS_SEED,
   INITIAL_SAMPLE_EVENTS,
   INITIAL_SAMPLE_NOTICES,
   INITIAL_SAMPLE_POSTS,
@@ -22,6 +24,49 @@ import {
   INITIAL_SPONSORS_SEED,
 } from './defaults';
 import { db, handleFirestoreError, OperationType } from './firebase';
+
+export async function seedRakutenNovemberCampaign(): Promise<{ created: number }> {
+  let created = 0;
+  try {
+    for (const camp of INITIAL_RETAIL_CAMPAIGNS_SEED) {
+      const ref = doc(db, 'retail_campaigns', camp.id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        const { id: _id, ...campFields } = camp;
+        await setDoc(ref, {
+          ...campFields,
+          startAt: camp.startAt ? Timestamp.fromDate(new Date(camp.startAt as string)) : null,
+          endAt: camp.endAt ? Timestamp.fromDate(new Date(camp.endAt as string)) : null,
+          verifiedAt: camp.verifiedAt ? Timestamp.fromDate(new Date(camp.verifiedAt as string)) : null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        created++;
+      }
+    }
+
+    for (const drop of INITIAL_RETAIL_DROPS_SEED) {
+      const ref = doc(db, 'retail_drops', drop.id);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        const { id: _id, ...dropFields } = drop;
+        await setDoc(ref, {
+          ...dropFields,
+          startAt: drop.startAt ? Timestamp.fromDate(new Date(drop.startAt as string)) : null,
+          endAt: drop.endAt ? Timestamp.fromDate(new Date(drop.endAt as string)) : null,
+          verifiedAt: drop.verifiedAt ? Timestamp.fromDate(new Date(drop.verifiedAt as string)) : null,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        created++;
+      }
+    }
+
+    return { created };
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, 'seedRakutenNovemberCampaign');
+  }
+}
 
 export async function seedInitialData(adminUid: string, includeSamples = true): Promise<{ created: number }> {
   let created = 0;
@@ -74,6 +119,10 @@ export async function seedInitialData(adminUid: string, includeSamples = true): 
         created++;
       }
     }
+
+    // 4. First real retail campaign & 11 products (Rakuten Books Nov 2026)
+    const rakutenRes = await seedRakutenNovemberCampaign();
+    created += rakutenRes.created;
 
     if (includeSamples) {
       for (const product of INITIAL_SAMPLE_PRODUCTS) {

@@ -145,7 +145,10 @@
         "description": { "type": "string", "maxLength": 600 },
         "url": { "type": "string", "maxLength": 500 },
         "logoUrl": { "type": "string", "maxLength": 600 },
-        "placement": { "type": "string", "enum": ["home_partners", "home_banner", "shop_banner"] },
+        "desktopBannerUrl": { "type": "string", "maxLength": 600 },
+        "mobileBannerUrl": { "type": "string", "maxLength": 600 },
+        "ctaLabel": { "type": "string", "maxLength": 40 },
+        "placement": { "type": "string", "enum": ["home_partners", "home_banner", "news_inline", "shop_banner", "drops_banner"] },
         "badgeLabel": { "type": "string", "maxLength": 30 },
         "priority": { "type": "number" },
         "startAt": { "type": "string", "format": "date-time" },
@@ -192,7 +195,7 @@
       "description": "Anonymous page view and link click event for admin analytics.",
       "type": "object",
       "properties": {
-        "eventType": { "type": "string", "enum": ["page_view", "sponsor_click", "action_click", "dm_click", "email_click"] },
+        "eventType": { "type": "string", "enum": ["page_view", "sponsor_click", "sponsor_impression", "action_click", "dm_click", "email_click"] },
         "path": { "type": "string", "minLength": 1, "maxLength": 120 },
         "targetType": { "type": "string", "maxLength": 60 },
         "targetId": { "type": "string", "maxLength": 128 },
@@ -201,6 +204,63 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["eventType", "path", "dateKey", "createdAt"]
+    },
+    "RetailCampaign": {
+      "title": "RetailCampaign",
+      "description": "Retail drop or raffle campaign group sharing schedule, retailer, and entry conditions across multiple TCG products.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "retailer": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "country": { "type": "string", "enum": ["한국", "일본", "미국"] },
+        "saleType": { "type": "string", "enum": ["추첨 판매", "일반 정가 판매", "선착순 판매", "예약 판매"] },
+        "timezoneLabel": { "type": "string", "maxLength": 40 },
+        "startAt": { "type": "string", "format": "date-time" },
+        "endAt": { "type": "string", "format": "date-time" },
+        "purchaseWindowText": { "type": "string", "maxLength": 200 },
+        "conditions": { "type": "string", "maxLength": 4000 },
+        "officialUrl": { "type": "string", "maxLength": 500 },
+        "verifiedAt": { "type": "string", "format": "date-time" },
+        "isPinned": { "type": "boolean" },
+        "isRecommended": { "type": "boolean" },
+        "archiveEnded": { "type": "boolean" },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "retailer", "country", "saleType", "isPinned", "isRecommended", "archiveEnded", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "RetailDrop": {
+      "title": "RetailDrop",
+      "description": "Individual TCG retail price sale or official raffle product entry.",
+      "type": "object",
+      "properties": {
+        "campaignId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "tcg": { "type": "string", "enum": ["포켓몬", "원피스", "기타 TCG"] },
+        "country": { "type": "string", "enum": ["한국", "일본", "미국"] },
+        "retailer": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "saleType": { "type": "string", "enum": ["추첨 판매", "일반 정가 판매", "선착순 판매", "예약 판매"] },
+        "price": { "type": "number" },
+        "currency": { "type": "string", "enum": ["KRW", "JPY", "USD"] },
+        "imageUrl": { "type": "string", "maxLength": 200000 },
+        "officialUrl": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "timezoneLabel": { "type": "string", "maxLength": 40 },
+        "startAt": { "type": "string", "format": "date-time" },
+        "endAt": { "type": "string", "format": "date-time" },
+        "purchaseWindowText": { "type": "string", "maxLength": 200 },
+        "conditions": { "type": "string", "maxLength": 4000 },
+        "manualStatus": { "type": "string", "enum": ["auto", "예정", "응모 중", "마감 임박", "응모 종료", "판매 확인", "품절 확인", "재확인 필요", "시작 예정", "접수 중", "종료", "확인 필요"] },
+        "verifiedAt": { "type": "string", "format": "date-time" },
+        "isPinned": { "type": "boolean" },
+        "isRecommended": { "type": "boolean" },
+        "archiveEnded": { "type": "boolean" },
+        "order": { "type": "number" },
+        "visibilityState": { "type": "string", "enum": ["published", "draft", "trashed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "tcg", "country", "retailer", "saleType", "price", "currency", "officialUrl", "manualStatus", "isPinned", "isRecommended", "archiveEnded", "order", "visibilityState", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -247,6 +307,14 @@
     "/analytics_events/{eventId}": {
       "schema": { "$ref": "#/entities/AnalyticsEvent" },
       "description": "Anonymous visitor page view and click events."
+    },
+    "/retail_campaigns/{campaignId}": {
+      "schema": { "$ref": "#/entities/RetailCampaign" },
+      "description": "Retail drop and official raffle campaign groups."
+    },
+    "/retail_drops/{dropId}": {
+      "schema": { "$ref": "#/entities/RetailDrop" },
+      "description": "Individual TCG retail price drops and raffle products."
     }
   }
 }

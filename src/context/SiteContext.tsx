@@ -5,6 +5,8 @@ import {
   ASSET_IMAGES,
   DEFAULT_SITE_CONFIG,
   INITIAL_FAQS_SEED,
+  INITIAL_RETAIL_CAMPAIGNS_SEED,
+  INITIAL_RETAIL_DROPS_SEED,
   INITIAL_SAMPLE_EVENTS,
   INITIAL_SAMPLE_NOTICES,
   INITIAL_SAMPLE_POSTS,
@@ -14,13 +16,21 @@ import {
   LEGACY_DEFAULT_LOGO,
 } from '../lib/defaults';
 import { auth, db, handleFirestoreError, OperationType, testConnection } from '../lib/firebase';
-import { getEventStatus, isScheduledVisible, toDateSafe } from '../lib/utils';
+import {
+  getEventStatus,
+  isScheduledVisible,
+  normalizeHomeSections,
+  resolveEffectiveDrop,
+  toDateSafe,
+} from '../lib/utils';
 import {
   EventItem,
   FaqItem,
   Notice,
   Post,
   Product,
+  RetailCampaign,
+  RetailDrop,
   Review,
   SiteConfig,
   Sponsor,
@@ -40,6 +50,8 @@ interface SiteContextValue {
   sponsors: Sponsor[];
   reviews: Review[];
   faqs: FaqItem[];
+  retailCampaigns: RetailCampaign[];
+  retailDrops: RetailDrop[];
   currentUser: User | null;
   isAdminVerified: boolean;
   authReady: boolean;
@@ -60,6 +72,8 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [rawSponsors, setRawSponsors] = useState<Sponsor[]>([]);
   const [rawReviews, setRawReviews] = useState<Review[]>([]);
   const [rawFaqs, setRawFaqs] = useState<FaqItem[]>([]);
+  const [rawRetailCampaigns, setRawRetailCampaigns] = useState<RetailCampaign[]>([]);
+  const [rawRetailDrops, setRawRetailDrops] = useState<RetailDrop[]>([]);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAdminVerified, setIsAdminVerified] = useState(false);
@@ -132,6 +146,10 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setConfig({
                 ...DEFAULT_SITE_CONFIG,
                 ...data,
+                homeSections: normalizeHomeSections(
+                  data.homeSections,
+                  DEFAULT_SITE_CONFIG.homeSections
+                ),
                 brand: mergedBrand,
                 theme: { ...DEFAULT_SITE_CONFIG.theme, ...(data.theme || {}) },
                 seo: { ...DEFAULT_SITE_CONFIG.seo, ...(data.seo || {}) },
@@ -245,6 +263,30 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
           (err) => handleFirestoreError(err, OperationType.LIST, 'faqs')
         )
       );
+
+      unsubs.push(
+        onSnapshot(
+          query(collection(db, 'retail_campaigns'), where('visibilityState', '==', 'published')),
+          (snap) => {
+            if (!active) return;
+            setRawRetailCampaigns(
+              snap.docs.map((d) => ({ id: d.id, ...d.data() } as RetailCampaign))
+            );
+          },
+          (err) => handleFirestoreError(err, OperationType.LIST, 'retail_campaigns')
+        )
+      );
+
+      unsubs.push(
+        onSnapshot(
+          query(collection(db, 'retail_drops'), where('visibilityState', '==', 'published')),
+          (snap) => {
+            if (!active) return;
+            setRawRetailDrops(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RetailDrop)));
+          },
+          (err) => handleFirestoreError(err, OperationType.LIST, 'retail_drops')
+        )
+      );
     }
 
     init();
@@ -354,6 +396,33 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }, [isConfigInitialized, rawFaqs]);
 
+  const useSeedDropsFallback = rawRetailCampaigns.length === 0 && rawRetailDrops.length === 0;
+
+  const retailCampaigns = useMemo(() => {
+    const list: RetailCampaign[] = useSeedDropsFallback
+      ? (INITIAL_RETAIL_CAMPAIGNS_SEED as RetailCampaign[])
+      : rawRetailCampaigns;
+    return [...list].sort((a, b) => {
+      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+      const ta = toDateSafe(a.startAt)?.getTime() ?? 0;
+      const tb = toDateSafe(b.startAt)?.getTime() ?? 0;
+      return tb - ta;
+    });
+  }, [useSeedDropsFallback, rawRetailCampaigns]);
+
+  const retailDrops = useMemo(() => {
+    const campMap = new Map(retailCampaigns.map((c) => [c.id, c]));
+    const list: RetailDrop[] = useSeedDropsFallback
+      ? (INITIAL_RETAIL_DROPS_SEED as RetailDrop[])
+      : rawRetailDrops;
+    return list
+      .map((drop) => resolveEffectiveDrop(drop, drop.campaignId ? campMap.get(drop.campaignId) : undefined))
+      .sort((a, b) => {
+        if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
+  }, [useSeedDropsFallback, rawRetailDrops, retailCampaigns]);
+
   const value: SiteContextValue = {
     config,
     isConfigInitialized,
@@ -368,6 +437,8 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sponsors,
     reviews,
     faqs,
+    retailCampaigns,
+    retailDrops,
     currentUser,
     isAdminVerified,
     authReady,

@@ -16,7 +16,9 @@ import { NewsPage } from './pages/NewsPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { SellPage } from './pages/SellPage';
 import { ShopPage } from './pages/ShopPage';
+import { SponsorsPage } from './pages/SponsorsPage';
 import { AdminPage } from './pages/admin/AdminPage';
+import { DropsPage } from './pages/DropsPage';
 
 const NotFoundPage: React.FC = () => (
   <div className="max-w-3xl mx-auto px-4 sm:px-6 py-20 text-center space-y-4">
@@ -45,12 +47,14 @@ export default function App() {
                 <PublicLayout>
                   <Routes>
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/drops" element={<DropsPage />} />
                     <Route path="/shop" element={<ShopPage />} />
                     <Route path="/shop/:id" element={<ProductDetailPage />} />
                     <Route path="/sell" element={<SellPage />} />
                     <Route path="/news" element={<NewsPage />} />
                     <Route path="/news/:slug" element={<NewsDetailPage />} />
                     <Route path="/events" element={<EventsPage />} />
+                    <Route path="/sponsors" element={<SponsorsPage />} />
                     <Route path="/legal" element={<LegalPage />} />
                     <Route path="/legal/:tab" element={<LegalPage />} />
                     <Route path="*" element={<NotFoundPage />} />

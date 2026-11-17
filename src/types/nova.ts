@@ -44,16 +44,17 @@ export interface HomeActionItem {
 }
 
 export type HomeSectionId =
-  | 'actions'
-  | 'notices'
-  | 'featured_products'
-  | 'community'
+  | 'retail_raffle'
   | 'news'
-  | 'events'
   | 'sponsors'
+  | 'actions'
+  | 'featured_products'
+  | 'events'
+  | 'community'
   | 'reviews'
   | 'faq'
-  | 'work_with_nova';
+  | 'work_with_nova'
+  | 'notices';
 
 export interface HomeSectionConfig {
   id: HomeSectionId;
@@ -198,13 +199,23 @@ export interface EventItem {
   updatedAt?: unknown;
 }
 
+export type SponsorPlacement =
+  | 'home_partners'
+  | 'home_banner'
+  | 'news_inline'
+  | 'shop_banner'
+  | 'drops_banner';
+
 export interface Sponsor {
   id: string;
   name: string;
   description: string;
   url: string;
   logoUrl?: string;
-  placement: 'home_partners' | 'home_banner' | 'shop_banner';
+  desktopBannerUrl?: string;
+  mobileBannerUrl?: string;
+  ctaLabel?: string;
+  placement: SponsorPlacement;
   badgeLabel?: string;
   priority: number;
   startAt?: unknown;
@@ -239,7 +250,13 @@ export interface FaqItem {
 
 export interface AnalyticsEvent {
   id: string;
-  eventType: 'page_view' | 'sponsor_click' | 'action_click' | 'dm_click' | 'email_click';
+  eventType:
+    | 'page_view'
+    | 'sponsor_click'
+    | 'sponsor_impression'
+    | 'action_click'
+    | 'dm_click'
+    | 'email_click';
   path: string;
   targetType?: string;
   targetId?: string;
@@ -254,6 +271,75 @@ export interface AdminUser {
   label?: string;
   role: 'admin';
   addedBy?: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+export type DropSaleType = '추첨 판매' | '일반 정가 판매' | '선착순 판매' | '예약 판매';
+export type DropTcgCategory = '포켓몬' | '원피스' | '기타 TCG';
+export type DropCountry = '한국' | '일본' | '미국';
+export type DropCurrency = 'KRW' | 'JPY' | 'USD';
+
+export type DropStatusLabel =
+  | '예정'
+  | '응모 중'
+  | '마감 임박'
+  | '응모 종료'
+  | '판매 확인'
+  | '품절 확인'
+  | '재확인 필요'
+  | '시작 예정'
+  | '접수 중'
+  | '종료'
+  | '확인 필요';
+
+export type DropStatusOverride = 'auto' | DropStatusLabel;
+
+export interface RetailCampaign {
+  id: string;
+  title: string;
+  retailer: string;
+  country: DropCountry;
+  saleType: DropSaleType;
+  timezoneLabel?: string;
+  startAt?: unknown;
+  endAt?: unknown;
+  purchaseWindowText?: string;
+  conditions?: string;
+  officialUrl?: string;
+  verifiedAt?: unknown;
+  isPinned: boolean;
+  isRecommended: boolean;
+  archiveEnded: boolean;
+  visibilityState: VisibilityState;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+export interface RetailDrop {
+  id: string;
+  campaignId?: string;
+  title: string;
+  tcg: DropTcgCategory;
+  country: DropCountry;
+  retailer: string;
+  saleType: DropSaleType;
+  price: number;
+  currency: DropCurrency;
+  imageUrl?: string;
+  officialUrl: string;
+  timezoneLabel?: string;
+  startAt?: unknown;
+  endAt?: unknown;
+  purchaseWindowText?: string;
+  conditions?: string;
+  manualStatus: DropStatusOverride;
+  verifiedAt?: unknown;
+  isPinned: boolean;
+  isRecommended: boolean;
+  archiveEnded: boolean;
+  order: number;
+  visibilityState: VisibilityState;
   createdAt?: unknown;
   updatedAt?: unknown;
 }

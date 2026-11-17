@@ -37,6 +37,7 @@ export const DashboardTab: React.FC = () => {
     events,
     sponsors,
     reviews,
+    retailDrops,
     analyticsEvents,
     setActiveMenu,
     showToast,
@@ -110,6 +111,11 @@ export const DashboardTab: React.FC = () => {
       menu: 'notices' as const,
     },
     {
+      label: '활성 정가·추첨',
+      value: retailDrops.filter((d) => d.visibilityState === 'published').length,
+      menu: 'drops' as const,
+    },
+    {
       label: '활성 협찬/배너',
       value: sponsors.filter((s) => s.visibilityState === 'published').length,
       menu: 'sponsors' as const,
@@ -150,6 +156,25 @@ export const DashboardTab: React.FC = () => {
             <span>SAMPLE 일괄 삭제 ({sampleCount})</span>
           </button>
         </div>
+      </div>
+
+      <div className="border border-[#8068BA]/55 rounded-lg p-5 bg-[#171C23] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-xs font-mono-tabular text-[#8068BA]">QUICK ACTION · 정가·추첨 사진 넣기</p>
+          <p className="text-sm font-semibold text-[#F3F4F6]">
+            포켓몬·원피스 정가/추첨 카드에 상품 사진 등록하기
+          </p>
+          <p className="text-xs text-[#929AA6]">
+            [18. 정가·추첨 관리]에서 라쿠텐북스 11종을 등록하고 각 상품 옆 [사진 넣기] 버튼으로 바로 이미지를 올릴 수 있습니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setActiveMenu('drops')}
+          className="min-h-[40px] px-4 py-2 bg-[#C5CBD3] text-[#080A0D] rounded text-xs font-semibold whitespace-nowrap shrink-0 hover:bg-[#F3F4F6]"
+        >
+          정가·추첨 사진 관리 열기 →
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -210,6 +235,7 @@ export const AnalyticsTab: React.FC = () => {
   );
 
   const pageViews = filteredEvents.filter((e) => e.eventType === 'page_view');
+  const sponsorImpressions = filteredEvents.filter((e) => e.eventType === 'sponsor_impression');
   const sponsorClicks = filteredEvents.filter((e) => e.eventType === 'sponsor_click');
   const dmClicks = filteredEvents.filter((e) => e.eventType === 'dm_click');
   const emailClicks = filteredEvents.filter((e) => e.eventType === 'email_click');
@@ -224,13 +250,23 @@ export const AnalyticsTab: React.FC = () => {
   }, [pageViews]);
 
   const sponsorBreakdown = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { impressions: number; clicks: number }>();
+    sponsorImpressions.forEach((e) => {
+      const label = e.targetLabel || e.targetId || '기타';
+      const cur = map.get(label) || { impressions: 0, clicks: 0 };
+      cur.impressions += 1;
+      map.set(label, cur);
+    });
     sponsorClicks.forEach((e) => {
       const label = e.targetLabel || e.targetId || '기타';
-      map.set(label, (map.get(label) || 0) + 1);
+      const cur = map.get(label) || { impressions: 0, clicks: 0 };
+      cur.clicks += 1;
+      map.set(label, cur);
     });
-    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
-  }, [sponsorClicks]);
+    return Array.from(map.entries()).sort(
+      (a, b) => b[1].clicks - a[1].clicks || b[1].impressions - a[1].impressions
+    );
+  }, [sponsorImpressions, sponsorClicks]);
 
   return (
     <div className="space-y-6">
@@ -285,9 +321,10 @@ export const AnalyticsTab: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {[
           { label: '페이지 조회', value: pageViews.length },
+          { label: '협찬 배너 노출', value: sponsorImpressions.length },
           { label: '협찬 배너 클릭', value: sponsorClicks.length },
           { label: 'Instagram DM 클릭', value: dmClicks.length },
           { label: '이메일 문의 클릭', value: emailClicks.length },
@@ -318,17 +355,30 @@ export const AnalyticsTab: React.FC = () => {
         </div>
 
         <div className="border border-[#303741] rounded-lg p-5 bg-[#171C23] space-y-4">
-          <h2 className="text-sm font-semibold text-[#F3F4F6]">협찬 &amp; 파트너 클릭 내역</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-[#F3F4F6]">협찬 &amp; 파트너 성과 (실측)</h2>
+            <span className="text-[11px] text-[#929AA6]">노출 · 클릭 · CTR</span>
+          </div>
           {sponsorBreakdown.length === 0 ? (
             <p className="text-xs text-[#929AA6] py-6 text-center">선택한 기간에 데이터 없음</p>
           ) : (
             <div className="divide-y divide-[#303741] text-xs">
-              {sponsorBreakdown.map(([label, count]) => (
-                <div key={label} className="py-2.5 flex items-center justify-between gap-4">
-                  <span className="text-[#F3F4F6] truncate">{label}</span>
-                  <span className="font-mono-tabular text-[#C5CBD3] font-semibold">{count}</span>
-                </div>
-              ))}
+              {sponsorBreakdown.map(([label, stats]) => {
+                const ctr =
+                  stats.impressions > 0
+                    ? `${((stats.clicks / stats.impressions) * 100).toFixed(1)}%`
+                    : '-';
+                return (
+                  <div key={label} className="py-2.5 flex items-center justify-between gap-4">
+                    <span className="text-[#F3F4F6] truncate">{label}</span>
+                    <div className="flex items-center gap-3 font-mono-tabular shrink-0">
+                      <span className="text-[#929AA6]">노출 {stats.impressions}</span>
+                      <span className="text-[#C5CBD3] font-semibold">클릭 {stats.clicks}</span>
+                      <span className="text-[#929AA6]">CTR {ctr}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -351,6 +401,8 @@ export const BackupTab: React.FC = () => {
     sponsors,
     reviews,
     faqs,
+    retailCampaigns,
+    retailDrops,
     showToast,
   } = useAdmin();
   const [busy, setBusy] = useState(false);
@@ -378,13 +430,19 @@ export const BackupTab: React.FC = () => {
     faqs
       .filter((i) => i.visibilityState === 'trashed')
       .forEach((i) => items.push({ collection: 'faqs', id: i.id, title: i.question, updatedAt: i.updatedAt }));
+    retailCampaigns
+      .filter((i) => i.visibilityState === 'trashed')
+      .forEach((i) => items.push({ collection: 'retail_campaigns', id: i.id, title: i.title, updatedAt: i.updatedAt }));
+    retailDrops
+      .filter((i) => i.visibilityState === 'trashed')
+      .forEach((i) => items.push({ collection: 'retail_drops', id: i.id, title: i.title, updatedAt: i.updatedAt }));
     return items;
-  }, [products, posts, notices, events, sponsors, reviews, faqs]);
+  }, [products, posts, notices, events, sponsors, reviews, faqs, retailCampaigns, retailDrops]);
 
   const serializeDocs = (arr: Record<string, unknown>[]) =>
     arr.map((item) => {
       const copy: Record<string, unknown> = { ...item };
-      ['createdAt', 'updatedAt', 'scheduledAt', 'startAt', 'endAt'].forEach((k) => {
+      ['createdAt', 'updatedAt', 'scheduledAt', 'startAt', 'endAt', 'verifiedAt'].forEach((k) => {
         const d = toDateSafe(copy[k]);
         if (d) copy[k] = d.toISOString();
       });
@@ -409,6 +467,8 @@ export const BackupTab: React.FC = () => {
           sponsors: serializeDocs(sponsors as unknown as Record<string, unknown>[]),
           reviews: serializeDocs(reviews as unknown as Record<string, unknown>[]),
           faqs: serializeDocs(faqs as unknown as Record<string, unknown>[]),
+          retail_campaigns: serializeDocs(retailCampaigns as unknown as Record<string, unknown>[]),
+          retail_drops: serializeDocs(retailDrops as unknown as Record<string, unknown>[]),
           buyback_requests: serializeDocs(buybackList),
         },
       };
@@ -460,7 +520,7 @@ export const BackupTab: React.FC = () => {
           const { id, ...rest } = item;
           if (typeof id !== 'string' || !id) continue;
           const payload: Record<string, unknown> = { ...rest };
-          ['scheduledAt', 'startAt', 'endAt'].forEach((k) => {
+          ['scheduledAt', 'startAt', 'endAt', 'verifiedAt'].forEach((k) => {
             if (typeof payload[k] === 'string') {
               const d = new Date(payload[k] as string);
               if (!Number.isNaN(d.getTime())) payload[k] = Timestamp.fromDate(d);
@@ -480,6 +540,12 @@ export const BackupTab: React.FC = () => {
       if (Array.isArray(cols.sponsors)) await restoreCollection('sponsors', cols.sponsors);
       if (Array.isArray(cols.reviews)) await restoreCollection('reviews', cols.reviews);
       if (Array.isArray(cols.faqs)) await restoreCollection('faqs', cols.faqs);
+      if (Array.isArray(cols.retail_campaigns)) {
+        await restoreCollection('retail_campaigns', cols.retail_campaigns);
+      }
+      if (Array.isArray(cols.retail_drops)) {
+        await restoreCollection('retail_drops', cols.retail_drops);
+      }
 
       showToast('JSON 백업 데이터 복원이 완료되었습니다. 필요 시 [변경사항 게시]를 눌러주세요.');
     } catch (err) {

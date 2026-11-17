@@ -877,13 +877,31 @@ export const PostsTab: React.FC = () => {
               onChange={(e) => setEditing({ ...editing, slug: e.target.value })}
               className="min-h-[40px] px-3 text-xs font-mono-tabular bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             />
-            <input
-              type="text"
-              placeholder="카테고리 (예: 컬렉팅 가이드)"
-              value={editing.category || ''}
-              onChange={(e) => setEditing({ ...editing, category: e.target.value })}
-              className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
-            />
+            <div className="space-y-1.5">
+              <input
+                type="text"
+                placeholder="카테고리 (예: 정가 구매·추첨, TCG 뉴스)"
+                value={editing.category || ''}
+                onChange={(e) => setEditing({ ...editing, category: e.target.value })}
+                className="w-full min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {['정가 구매·추첨', 'TCG 뉴스', '컬렉팅 가이드'].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setEditing({ ...editing, category: preset })}
+                    className={`px-2 py-1 text-[11px] rounded border transition-colors ${
+                      editing.category === preset
+                        ? 'border-[#C5CBD3] bg-[#C5CBD3]/15 text-[#F3F4F6]'
+                        : 'border-[#303741] bg-[#11151A] text-[#929AA6] hover:text-[#F3F4F6]'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
             <select
               value={editing.visibilityState || 'draft'}
               onChange={(e) =>
@@ -1202,6 +1220,14 @@ export const NoticesTab: React.FC = () => {
 /* ============================================================================
    10. 배너 및 협찬 관리 (REPACK 포함, 위치/기간/우선순위/클릭수)
 ============================================================================ */
+const PLACEMENT_LABELS: Record<Sponsor['placement'], string> = {
+  home_banner: '메인 스폰서 배너 (홈 상단)',
+  news_inline: '뉴스 · 추첨 내 인라인 광고',
+  home_partners: '공식 파트너 로고 그리드 (홈 중단)',
+  shop_banner: '스토어 상단 배너 (/shop)',
+  drops_banner: '정가·추첨 페이지 배너 (/drops)',
+};
+
 export const SponsorsTab: React.FC = () => {
   const { sponsors, analyticsEvents, showToast } = useAdmin();
   const activeSponsors = sponsors.filter((s) => s.visibilityState !== 'trashed');
@@ -1210,9 +1236,17 @@ export const SponsorsTab: React.FC = () => {
   const [startLocal, setStartLocal] = useState('');
   const [endLocal, setEndLocal] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingDesktop, setUploadingDesktop] = useState(false);
+  const [uploadingMobile, setUploadingMobile] = useState(false);
+
+  const getImpressionCount = (sponsorId: string) =>
+    analyticsEvents.filter((e) => e.eventType === 'sponsor_impression' && e.targetId === sponsorId).length;
 
   const getClickCount = (sponsorId: string) =>
     analyticsEvents.filter((e) => e.eventType === 'sponsor_click' && e.targetId === sponsorId).length;
+
+  const formatCtr = (impressions: number, clicks: number) =>
+    impressions > 0 ? `${((clicks / impressions) * 100).toFixed(1)}%` : '-';
 
   const openEditor = (s?: Sponsor) => {
     if (s) {
@@ -1226,6 +1260,9 @@ export const SponsorsTab: React.FC = () => {
         description: '',
         url: '',
         logoUrl: '',
+        desktopBannerUrl: '',
+        mobileBannerUrl: '',
+        ctaLabel: '',
         placement: 'home_partners',
         badgeLabel: '협찬',
         priority: activeSponsors.length + 1,
@@ -1250,6 +1287,9 @@ export const SponsorsTab: React.FC = () => {
         description: (editing.description || '').trim().slice(0, 600),
         url: editing.url.trim().slice(0, 500),
         logoUrl: (editing.logoUrl || '').trim().slice(0, 600),
+        desktopBannerUrl: (editing.desktopBannerUrl || '').trim().slice(0, 600),
+        mobileBannerUrl: (editing.mobileBannerUrl || '').trim().slice(0, 600),
+        ctaLabel: (editing.ctaLabel || '').trim().slice(0, 40),
         placement: (editing.placement || 'home_partners') as Sponsor['placement'],
         badgeLabel: (editing.badgeLabel || '협찬').trim().slice(0, 30),
         priority: Number(editing.priority ?? 1),
@@ -1265,7 +1305,7 @@ export const SponsorsTab: React.FC = () => {
         await updateDoc(doc(db, 'sponsors', id), payload);
       }
       setEditing(null);
-      showToast('협찬 / 배너가 저장되었습니다.');
+      showToast('협찬 / 광고 상품이 저장되었습니다.');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `sponsors/${id}`);
     }
@@ -1275,9 +1315,9 @@ export const SponsorsTab: React.FC = () => {
     <div className="space-y-6">
       <div className="border-b border-[#303741] pb-4 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-[#F3F4F6]">배너 및 협찬 관리</h1>
+          <h1 className="text-xl font-semibold text-[#F3F4F6]">배너 및 협찬 광고 관리</h1>
           <p className="text-xs text-[#929AA6] mt-1">
-            REPACK 등 공식 협찬 파트너의 노출 위치, 기간, 우선순위 및 실제 클릭수를 관리합니다.
+            광고 상품별 노출 위치, 기간, PC·모바일 배너 이미지 및 실측 노출수·클릭수·CTR을 관리합니다.
           </p>
         </div>
         <button
@@ -1286,7 +1326,7 @@ export const SponsorsTab: React.FC = () => {
           className="min-h-[40px] px-4 py-2 bg-[#C5CBD3] text-[#080A0D] rounded text-xs font-semibold inline-flex items-center gap-1.5"
         >
           <Plus size={14} />
-          <span>협찬 추가</span>
+          <span>협찬 · 광고 추가</span>
         </button>
       </div>
 
@@ -1296,7 +1336,7 @@ export const SponsorsTab: React.FC = () => {
             <input
               type="text"
               required
-              placeholder="파트너/배너명 *"
+              placeholder="파트너 / 광고명 *"
               value={editing.name || ''}
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
               className="min-h-[40px] px-3 text-sm bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
@@ -1314,11 +1354,14 @@ export const SponsorsTab: React.FC = () => {
               onChange={(e) =>
                 setEditing({ ...editing, placement: e.target.value as Sponsor['placement'] })
               }
+              aria-label="광고 노출 위치"
               className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             >
-              <option value="home_partners">메인 협찬 파트너 섹션</option>
-              <option value="home_banner">메인 배너</option>
-              <option value="shop_banner">스토어 상단 배너</option>
+              <option value="home_banner">메인 스폰서 배너 (홈 상단)</option>
+              <option value="news_inline">뉴스 · 추첨 내 인라인 광고</option>
+              <option value="home_partners">공식 파트너 로고 그리드 (홈 중단)</option>
+              <option value="shop_banner">스토어 상단 배너 (/shop)</option>
+              <option value="drops_banner">정가·추첨 페이지 배너 (/drops)</option>
             </select>
             <input
               type="number"
@@ -1327,29 +1370,52 @@ export const SponsorsTab: React.FC = () => {
               onChange={(e) => setEditing({ ...editing, priority: Number(e.target.value) })}
               className="min-h-[40px] px-3 text-xs font-mono-tabular bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             />
+            <div>
+              <label className="block text-[11px] text-[#929AA6] mb-1">노출 시작일시 (선택)</label>
+              <input
+                type="datetime-local"
+                value={startLocal}
+                onChange={(e) => setStartLocal(e.target.value)}
+                className="w-full min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] text-[#929AA6] mb-1">노출 종료일시 (선택)</label>
+              <input
+                type="datetime-local"
+                value={endLocal}
+                onChange={(e) => setEndLocal(e.target.value)}
+                className="w-full min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+              />
+            </div>
+
             <input
-              type="datetime-local"
-              value={startLocal}
-              onChange={(e) => setStartLocal(e.target.value)}
+              type="text"
+              placeholder="배지 문구 (예: 협찬, 공식 파트너)"
+              value={editing.badgeLabel || ''}
+              onChange={(e) => setEditing({ ...editing, badgeLabel: e.target.value })}
               className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             />
             <input
-              type="datetime-local"
-              value={endLocal}
-              onChange={(e) => setEndLocal(e.target.value)}
+              type="text"
+              placeholder="버튼 문구 (미입력 시 '공식 사이트')"
+              value={editing.ctaLabel || ''}
+              onChange={(e) => setEditing({ ...editing, ctaLabel: e.target.value })}
               className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             />
+
+            {/* Brand Logo */}
             <div className="sm:col-span-2 flex items-center gap-2">
               <input
                 type="text"
-                placeholder="파트너 로고 이미지 URL (선택)"
+                placeholder="브랜드 로고 이미지 URL (선택)"
                 value={editing.logoUrl || ''}
                 onChange={(e) => setEditing({ ...editing, logoUrl: e.target.value })}
                 className="flex-1 min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
               />
               <label className="min-h-[40px] px-3 bg-[#11151A] border border-[#303741] rounded text-xs text-[#C5CBD3] inline-flex items-center gap-1.5 cursor-pointer hover:border-[#C5CBD3] shrink-0">
                 <Upload size={13} />
-                <span>{uploadingLogo ? '중...' : '로고 업로드'}</span>
+                <span>{uploadingLogo ? '업로드 중...' : '로고 업로드'}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -1377,9 +1443,98 @@ export const SponsorsTab: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* PC Banner Image */}
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="PC용 홍보 배너 이미지 URL (미입력 시 텍스트형 배너)"
+                value={editing.desktopBannerUrl || ''}
+                onChange={(e) => setEditing({ ...editing, desktopBannerUrl: e.target.value })}
+                className="flex-1 min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+              />
+              <label className="min-h-[40px] px-3 bg-[#11151A] border border-[#303741] rounded text-xs text-[#C5CBD3] inline-flex items-center gap-1.5 cursor-pointer hover:border-[#C5CBD3] shrink-0">
+                <Upload size={13} />
+                <span>{uploadingDesktop ? '업로드 중...' : 'PC 배너 업로드'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    setUploadingDesktop(true);
+                    try {
+                      const url = await uploadPublicMedia('sponsors', file);
+                      setEditing({ ...editing, desktopBannerUrl: url });
+                      showToast('PC용 배너 이미지가 업로드되었습니다.');
+                    } catch (err) {
+                      showToast(`업로드 실패: ${err instanceof Error ? err.message : String(err)}`);
+                    } finally {
+                      setUploadingDesktop(false);
+                    }
+                  }}
+                  className="sr-only"
+                />
+              </label>
+              {editing.desktopBannerUrl && (
+                <div className="w-16 h-10 rounded border border-[#303741] overflow-hidden shrink-0">
+                  <SafeImage
+                    src={editing.desktopBannerUrl}
+                    alt="PC 배너"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Banner Image */}
+            <div className="sm:col-span-2 flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="모바일용 홍보 배너 이미지 URL (선택)"
+                value={editing.mobileBannerUrl || ''}
+                onChange={(e) => setEditing({ ...editing, mobileBannerUrl: e.target.value })}
+                className="flex-1 min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+              />
+              <label className="min-h-[40px] px-3 bg-[#11151A] border border-[#303741] rounded text-xs text-[#C5CBD3] inline-flex items-center gap-1.5 cursor-pointer hover:border-[#C5CBD3] shrink-0">
+                <Upload size={13} />
+                <span>{uploadingMobile ? '업로드 중...' : '모바일 배너 업로드'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    if (!file) return;
+                    setUploadingMobile(true);
+                    try {
+                      const url = await uploadPublicMedia('sponsors', file);
+                      setEditing({ ...editing, mobileBannerUrl: url });
+                      showToast('모바일용 배너 이미지가 업로드되었습니다.');
+                    } catch (err) {
+                      showToast(`업로드 실패: ${err instanceof Error ? err.message : String(err)}`);
+                    } finally {
+                      setUploadingMobile(false);
+                    }
+                  }}
+                  className="sr-only"
+                />
+              </label>
+              {editing.mobileBannerUrl && (
+                <div className="w-12 h-10 rounded border border-[#303741] overflow-hidden shrink-0">
+                  <SafeImage
+                    src={editing.mobileBannerUrl}
+                    alt="모바일 배너"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+
             <textarea
               rows={2}
-              placeholder="설명 문구"
+              placeholder="소개 문구"
               value={editing.description || ''}
               onChange={(e) => setEditing({ ...editing, description: e.target.value })}
               className="sm:col-span-2 px-3 py-2 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
@@ -1424,47 +1579,87 @@ export const SponsorsTab: React.FC = () => {
       )}
 
       <div className="space-y-3">
-        {activeSponsors.map((s) => (
-          <div
-            key={s.id}
-            className="border border-[#303741] rounded-lg p-5 bg-[#171C23] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-          >
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-2 text-xs text-[#929AA6]">
-                <span>우선순위 {s.priority}</span>
-                <span>·</span>
-                <span>{s.placement}</span>
-                <span>·</span>
-                <span className="font-mono-tabular text-[#C5CBD3]">
-                  클릭수 {getClickCount(s.id)}회
-                </span>
+        {activeSponsors.map((s) => {
+          const impressions = getImpressionCount(s.id);
+          const clicks = getClickCount(s.id);
+          return (
+            <div
+              key={s.id}
+              className="border border-[#303741] rounded-lg p-5 bg-[#171C23] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+            >
+              <div className="flex items-start gap-3.5 min-w-0">
+                {s.logoUrl ? (
+                  <div className="w-11 h-11 rounded border border-[#303741] bg-[#080A0D] overflow-hidden shrink-0">
+                    <SafeImage src={s.logoUrl} alt={s.name} className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-11 h-11 rounded border border-[#303741] bg-[#080A0D] flex items-center justify-center shrink-0">
+                    <span className="font-brand text-xs font-bold text-[#C5CBD3]">
+                      {s.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+
+                <div className="space-y-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[#929AA6]">
+                    <span>우선순위 {s.priority}</span>
+                    <span>·</span>
+                    <span className="text-[#C5CBD3]">{PLACEMENT_LABELS[s.placement] || s.placement}</span>
+                    <span>·</span>
+                    <span className={s.visibilityState === 'published' ? 'text-[#C5CBD3]' : 'text-[#8068BA]'}>
+                      {s.visibilityState === 'published' ? '공개' : '비공개'}
+                    </span>
+                    {(s.desktopBannerUrl || s.mobileBannerUrl) && (
+                      <>
+                        <span>·</span>
+                        <span className="text-[#C5CBD3]">이미지 배너</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-base font-semibold text-[#F3F4F6]">{s.name}</p>
+                  <p className="text-xs text-[#929AA6] truncate">{s.url}</p>
+                  <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono-tabular text-[#C5CBD3]">
+                    <span>노출 {impressions}회</span>
+                    <span>·</span>
+                    <span>클릭 {clicks}회</span>
+                    <span>·</span>
+                    <span>CTR {formatCtr(impressions, clicks)}</span>
+                    {Boolean(s.startAt || s.endAt) && (
+                      <>
+                        <span>·</span>
+                        <span className="text-[#929AA6]">
+                          기간 {s.startAt ? formatKST(s.startAt, false) : '즉시'} ~{' '}
+                          {s.endAt ? formatKST(s.endAt, false) : '상시'}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-              <p className="text-base font-semibold text-[#F3F4F6]">{s.name}</p>
-              <p className="text-xs text-[#929AA6] truncate">{s.url}</p>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => openEditor(s)}
+                  className="px-3 py-1.5 text-xs border border-[#303741] rounded text-[#F3F4F6]"
+                >
+                  수정
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    updateDoc(doc(db, 'sponsors', s.id), {
+                      visibilityState: 'trashed',
+                      updatedAt: serverTimestamp(),
+                    })
+                  }
+                  className="p-2 border border-red-400/40 rounded text-red-200"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => openEditor(s)}
-                className="px-3 py-1.5 text-xs border border-[#303741] rounded text-[#F3F4F6]"
-              >
-                수정
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  updateDoc(doc(db, 'sponsors', s.id), {
-                    visibilityState: 'trashed',
-                    updatedAt: serverTimestamp(),
-                  })
-                }
-                className="p-2 border border-red-400/40 rounded text-red-200"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

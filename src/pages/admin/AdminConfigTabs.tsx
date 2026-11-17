@@ -686,7 +686,9 @@ export const HomeLayoutTab: React.FC = () => {
             >
               <div className="flex items-center gap-3">
                 <GripVertical size={16} className="text-[#929AA6]" />
-                <span className="font-mono-tabular text-xs text-[#929AA6]">0{idx + 1}</span>
+                <span className="font-mono-tabular text-xs text-[#929AA6]">
+                  {String(idx + 1).padStart(2, '0')}
+                </span>
                 <span className="text-sm font-medium text-[#F3F4F6]">{sec.label}</span>
               </div>
 
