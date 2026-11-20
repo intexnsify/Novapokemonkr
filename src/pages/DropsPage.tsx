@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Archive,
   CalendarClock,
-  Camera,
   ChevronDown,
   ExternalLink,
   Info,
@@ -43,37 +41,39 @@ const SALE_TYPES: ('전체' | DropSaleType)[] = [
 const TCG_CATEGORIES: ('전체' | DropTcgCategory)[] = ['전체', '포켓몬', '원피스', '기타 TCG'];
 const COUNTRIES: ('전체' | DropCountry)[] = ['전체', '한국', '일본', '미국'];
 
-function getStatusTextClass(label: DropStatusLabel): string {
+function getStatusBadgeClass(label: DropStatusLabel): string {
   switch (label) {
     case '응모 중':
     case '판매 확인':
     case '접수 중':
-      return 'border-emerald-400/45 bg-emerald-950/35 text-emerald-200';
+      return 'border-[#B6DFCE] bg-[#ECF7F2] text-[#0F6B4B]';
     case '마감 임박':
-      return 'border-amber-400/55 bg-amber-950/40 text-amber-200';
+      return 'border-[#F0CFAF] bg-[#FDF4EB] text-[#9A5012]';
     case '예정':
     case '시작 예정':
-      return 'border-[#8068BA]/55 bg-[#8068BA]/15 text-[#E3DCF7]';
+      return 'border-[#CBD5E1] bg-[#F1F5F9] text-[#465C77]';
     case '재확인 필요':
     case '확인 필요':
-      return 'border-[#C5CBD3]/40 bg-[#11151A] text-[#C5CBD3]';
+      return 'border-[#D1D5DB] bg-[#F5F6F8] text-[#4B5563]';
     default:
-      return 'border-[#303741] bg-[#080A0D] text-[#929AA6]';
+      return 'border-[#E5E7EB] bg-[#F5F6F8] text-[#667085]';
   }
+}
+
+function isUpcomingStatus(label: DropStatusLabel): boolean {
+  return label === '예정' || label === '시작 예정';
 }
 
 interface DropCardProps {
   drop: RetailDrop;
   hideCampaignConditions?: boolean;
   btnRadius: string;
-  isAdminVerified?: boolean;
 }
 
 const DropCard: React.FC<DropCardProps> = ({
   drop,
   hideCampaignConditions,
   btnRadius,
-  isAdminVerified,
 }) => {
   const [condOpen, setCondOpen] = useState(false);
   const status = getDropStatusInfo(drop);
@@ -86,77 +86,64 @@ const DropCard: React.FC<DropCardProps> = ({
 
   return (
     <article
-      className={`border rounded-lg overflow-hidden bg-[#171C23] flex flex-col justify-between transition-colors ${
+      className={`border rounded-lg overflow-hidden bg-[#FFFFFF] flex flex-col justify-between transition-colors ${
         status.isEnded
-          ? 'border-[#303741]/70 opacity-80'
+          ? 'border-[#E5E7EB] opacity-85'
           : drop.isPinned
-            ? 'border-[#8068BA]/65 hover:border-[#C5CBD3]/70'
-            : 'border-[#303741] hover:border-[#C5CBD3]/60'
+            ? 'border-[#465C77]/60 hover:border-[#465C77]'
+            : 'border-[#E5E7EB] hover:border-[#D1D5DB]'
       }`}
     >
       <div>
-        {/* 1. Actual Product Photo (compact bounded height for mobile-first ergonomics) */}
-        <div className="relative h-40 w-full bg-[#11151A] border-b border-[#303741]/70 overflow-hidden">
+        <div className="relative h-40 w-full bg-[#F5F6F8] border-b border-[#E5E7EB] overflow-hidden">
           {drop.imageUrl ? (
             <SafeImage
               src={drop.imageUrl}
               alt={drop.title}
               fallbackTitle={`${drop.tcg} · ${drop.title}`}
-              className="w-full h-full object-contain p-2 bg-[#0D1015]"
+              className="w-full h-full object-contain p-3"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center px-4 text-center bg-gradient-to-br from-[#11151A] via-[#171C23] to-[#080A0D]">
-              <p className="font-brand text-[10px] tracking-[0.2em] text-[#929AA6] uppercase mb-1">
+            <div className="w-full h-full flex flex-col items-center justify-center px-4 text-center bg-[#F5F6F8]">
+              <p className="font-mono-tabular text-[10px] tracking-[0.18em] text-[#667085] uppercase mb-1">
                 {drop.tcg} · {drop.country}
               </p>
-              <p className="text-xs font-medium text-[#C5CBD3] line-clamp-2">{drop.title}</p>
-              {isAdminVerified && (
-                <Link
-                  to="/admin?tab=drops"
-                  className="mt-2.5 px-2.5 py-1 rounded border border-[#8068BA]/60 bg-[#8068BA]/15 text-[11px] text-[#E3DCF7] hover:border-[#C5CBD3] inline-flex items-center gap-1"
-                >
-                  <Camera size={11} />
-                  <span>사진 등록</span>
-                </Link>
-              )}
+              <p className="text-xs font-medium text-[#111827] line-clamp-2">{drop.title}</p>
             </div>
           )}
         </div>
 
-        {/* 2. Body: Mobile-first field order */}
-        <div className="p-4 space-y-3">
-          {/* Product Name & Source Metadata */}
+        <div className="p-4 sm:p-5 space-y-3">
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-[11px] text-[#929AA6] flex-wrap">
-              <span className="text-[#C5CBD3] font-medium">{drop.tcg}</span>
+            <div className="flex items-center gap-1.5 text-[11px] text-[#667085] flex-wrap">
+              <span className="text-[#111827] font-semibold">{drop.tcg}</span>
               <span aria-hidden="true">·</span>
               <span>{drop.country}</span>
               <span aria-hidden="true">·</span>
               <span className="truncate">{drop.retailer}</span>
             </div>
-            <h3 className="text-base font-semibold text-[#F3F4F6] leading-snug line-clamp-2">
+            <h3 className="text-base font-semibold text-[#111827] leading-snug line-clamp-2">
               {drop.title}
             </h3>
           </div>
 
-          {/* 3. Sale Type & Status */}
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 text-[#929AA6]">
-              <span className="font-medium text-[#C5CBD3]">{drop.saleType}</span>
+            <div className="flex items-center gap-2 text-[#667085]">
+              <span className="font-medium text-[#111827]">{drop.saleType}</span>
               {drop.isPinned && (
-                <span className="inline-flex items-center gap-0.5 text-[#C5CBD3]" title="상단 고정">
-                  <Pin size={11} className="text-[#8068BA]" aria-hidden="true" />
+                <span className="inline-flex items-center gap-0.5 text-[#465C77]" title="상단 고정">
+                  <Pin size={11} aria-hidden="true" />
                 </span>
               )}
               {drop.isRecommended && (
-                <span className="inline-flex items-center gap-0.5 text-[#C5CBD3]" title="추천">
-                  <Sparkles size={11} className="text-[#C5CBD3]" aria-hidden="true" />
-                  <span className="text-[11px]">추천</span>
+                <span className="inline-flex items-center gap-0.5 text-[#465C77]" title="추천">
+                  <Sparkles size={11} aria-hidden="true" />
+                  <span className="text-[11px] font-medium">추천</span>
                 </span>
               )}
             </div>
             <span
-              className={`px-2 py-0.5 text-[11px] font-semibold border rounded-sm ${getStatusTextClass(
+              className={`px-2 py-0.5 text-[11px] font-semibold border rounded-sm ${getStatusBadgeClass(
                 status.label
               )}`}
             >
@@ -164,20 +151,18 @@ const DropCard: React.FC<DropCardProps> = ({
             </span>
           </div>
 
-          {/* 4. Retail Price & Currency */}
-          <div className="pt-2 border-t border-[#303741]/60 flex items-baseline justify-between gap-2">
-            <span className="text-[11px] text-[#929AA6]">공식 정가</span>
-            <span className="font-mono-tabular text-base font-semibold text-[#F3F4F6]">
+          <div className="pt-2.5 border-t border-[#E5E7EB] flex items-baseline justify-between gap-2">
+            <span className="text-[11px] text-[#667085]">공식 정가</span>
+            <span className="font-mono-tabular text-base font-semibold text-[#111827]">
               {formatDropPrice(drop.price, drop.currency)}
             </span>
           </div>
 
-          {/* 5. Schedule / Deadline / Winner Window / Last Verified */}
-          <div className="space-y-1 text-xs text-[#929AA6] bg-[#11151A] border border-[#303741]/70 rounded-md p-2.5">
+          <div className="space-y-1.5 text-xs text-[#667085] bg-[#F5F6F8] border border-[#E5E7EB] rounded-md p-3">
             {startText && (
               <div className="flex items-center justify-between gap-2">
                 <span>{drop.saleType === '추첨 판매' ? '응모 시작' : '판매 시작'}</span>
-                <span className="font-mono-tabular text-[#C5CBD3]">{startText}</span>
+                <span className="font-mono-tabular text-[#111827]">{startText}</span>
               </div>
             )}
             {endText && (
@@ -185,7 +170,7 @@ const DropCard: React.FC<DropCardProps> = ({
                 <span>{drop.saleType === '추첨 판매' ? '응모 마감' : '판매 종료'}</span>
                 <span
                   className={`font-mono-tabular ${
-                    status.isUrgent ? 'text-amber-200 font-semibold' : 'text-[#F3F4F6]'
+                    status.isUrgent ? 'text-[#9A5012] font-semibold' : 'text-[#111827]'
                   }`}
                 >
                   {endText}
@@ -195,30 +180,29 @@ const DropCard: React.FC<DropCardProps> = ({
             {!startText && !endText && (
               <div className="flex items-center justify-between gap-2">
                 <span>판매 방식</span>
-                <span className="text-[#C5CBD3]">상시/비정기 판매 (공식처 확인 필요)</span>
+                <span className="text-[#111827]">상시/비정기 (공식처 확인)</span>
               </div>
             )}
             {drop.purchaseWindowText && !hideCampaignConditions && (
-              <div className="flex items-start justify-between gap-2 pt-1 border-t border-[#303741]/50">
+              <div className="flex items-start justify-between gap-2 pt-1.5 border-t border-[#E5E7EB]">
                 <span className="shrink-0">당첨 구매</span>
-                <span className="font-mono-tabular text-right text-[#C5CBD3]">
+                <span className="font-mono-tabular text-right text-[#111827]">
                   {drop.purchaseWindowText}
                 </span>
               </div>
             )}
-            <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#303741]/50 text-[11px]">
+            <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-[#E5E7EB] text-[11px] text-[#667085]">
               <span>마지막 확인</span>
               <span className="font-mono-tabular">{verifiedText}</span>
             </div>
           </div>
 
-          {/* Standalone conditions toggle (hidden when shown in parent Campaign block) */}
           {!hideCampaignConditions && drop.conditions && (
             <div>
               <button
                 type="button"
                 onClick={() => setCondOpen((v) => !v)}
-                className="w-full py-1.5 text-xs text-[#C5CBD3] hover:text-[#F3F4F6] flex items-center justify-between"
+                className="w-full py-1.5 text-xs text-[#667085] hover:text-[#111827] flex items-center justify-between"
               >
                 <span>참여 조건 확인</span>
                 <ChevronDown
@@ -227,7 +211,7 @@ const DropCard: React.FC<DropCardProps> = ({
                 />
               </button>
               {condOpen && (
-                <p className="mt-1 p-2.5 rounded bg-[#080A0D] border border-[#303741] text-[11px] text-[#929AA6] whitespace-pre-line leading-relaxed">
+                <p className="mt-1 p-3 rounded bg-[#F5F6F8] border border-[#E5E7EB] text-[11px] text-[#667085] whitespace-pre-line leading-relaxed">
                   {drop.conditions}
                 </p>
               )}
@@ -236,8 +220,7 @@ const DropCard: React.FC<DropCardProps> = ({
         </div>
       </div>
 
-      {/* 6. Prominent Official Apply / Purchase Link CTA */}
-      <div className="px-4 pb-4 pt-1">
+      <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-1">
         {hasUrl ? (
           <a
             href={drop.officialUrl}
@@ -252,17 +235,9 @@ const DropCard: React.FC<DropCardProps> = ({
             }
             className={`min-h-[44px] w-full px-4 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5 transition-colors ${btnRadius} ${
               status.isEnded
-                ? 'border border-[#303741] bg-[#11151A] text-[#C5CBD3] hover:border-[#C5CBD3]'
-                : 'hover:opacity-90'
+                ? 'border border-[#E5E7EB] bg-[#F5F6F8] text-[#667085] hover:border-[#D1D5DB] hover:text-[#111827]'
+                : 'bg-[#111827] text-[#FFFFFF] hover:bg-[#465C77]'
             }`}
-            style={
-              status.isEnded
-                ? undefined
-                : {
-                    backgroundColor: 'var(--nova-silver)',
-                    color: 'var(--nova-bg-main)',
-                  }
-            }
           >
             <span>
               {status.isEnded
@@ -274,7 +249,7 @@ const DropCard: React.FC<DropCardProps> = ({
             <ExternalLink size={13} />
           </a>
         ) : (
-          <span className="min-h-[44px] w-full px-4 py-2 text-xs border border-[#303741] text-[#929AA6] rounded flex items-center justify-center">
+          <span className="min-h-[44px] w-full px-4 py-2 text-xs border border-[#E5E7EB] text-[#667085] rounded flex items-center justify-center">
             공식 링크 준비 중
           </span>
         )}
@@ -287,16 +262,14 @@ interface CampaignGroupBlockProps {
   campaign: RetailCampaign;
   items: RetailDrop[];
   btnRadius: string;
-  isAdminVerified?: boolean;
 }
 
 const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
   campaign,
   items,
   btnRadius,
-  isAdminVerified,
 }) => {
-  const [conditionsOpen, setConditionsOpen] = useState(true);
+  const [conditionsOpen, setConditionsOpen] = useState(false);
   const campaignStatus = getDropStatusInfo({
     id: campaign.id,
     title: campaign.title,
@@ -322,51 +295,41 @@ const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
   });
 
   return (
-    <section className="border border-[#303741] rounded-lg bg-[#11151A] overflow-hidden">
-      {/* Shared Campaign Header */}
-      <div className="p-5 sm:p-6 border-b border-[#303741] bg-[#171C23] space-y-4">
+    <section className="border border-[#E5E7EB] rounded-lg bg-[#F5F6F8] overflow-hidden">
+      <div className="p-5 sm:p-6 border-b border-[#E5E7EB] bg-[#FFFFFF] space-y-5">
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
           <div className="space-y-2 min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-[#929AA6]">
-              <span className="font-mono-tabular text-[#8068BA] font-semibold">CAMPAIGN GROUP</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[#667085]">
+              <span className="font-mono-tabular text-[#465C77] font-semibold">CAMPAIGN GROUP</span>
               <span aria-hidden="true">·</span>
-              <span className="text-[#C5CBD3] font-medium">{campaign.retailer}</span>
+              <span className="text-[#111827] font-medium">{campaign.retailer}</span>
               <span aria-hidden="true">·</span>
               <span>{campaign.country}</span>
               <span aria-hidden="true">·</span>
               <span>{campaign.saleType}</span>
               <span
-                className={`px-2 py-0.5 text-[11px] font-semibold border rounded-sm ${getStatusTextClass(
+                className={`px-2 py-0.5 text-[11px] font-semibold border rounded-sm ${getStatusBadgeClass(
                   campaignStatus.label
                 )}`}
               >
                 {campaignStatus.label}
               </span>
             </div>
-            <h2 className="text-lg sm:text-xl font-semibold text-[#F3F4F6] text-balance">
+            <h3 className="text-lg sm:text-xl font-semibold text-[#111827] text-balance">
               {campaign.title}
-            </h2>
+            </h3>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <span className="font-mono-tabular text-xs text-[#C5CBD3] px-3 py-1.5 rounded border border-[#303741] bg-[#11151A]">
+            <span className="font-mono-tabular text-xs text-[#667085] px-3 py-1.5 rounded border border-[#E5E7EB] bg-[#F5F6F8]">
               대상 상품 {items.length}종
             </span>
-            {isAdminVerified && (
-              <Link
-                to="/admin?tab=drops"
-                className={`min-h-[36px] px-3 py-1.5 text-xs font-medium border border-[#8068BA]/60 bg-[#8068BA]/15 text-[#E3DCF7] hover:border-[#C5CBD3] inline-flex items-center gap-1.5 ${btnRadius}`}
-              >
-                <Camera size={12} />
-                <span>사진·상품 관리</span>
-              </Link>
-            )}
             {campaign.officialUrl && isValidExternalUrl(campaign.officialUrl) && (
               <a
                 href={campaign.officialUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`min-h-[36px] px-3.5 py-1.5 text-xs font-medium border border-[#303741] bg-[#080A0D] text-[#C5CBD3] hover:text-[#F3F4F6] hover:border-[#C5CBD3] inline-flex items-center gap-1.5 ${btnRadius}`}
+                className={`min-h-[38px] px-3.5 py-1.5 text-xs font-medium border border-[#E5E7EB] bg-[#F5F6F8] text-[#111827] hover:border-[#111827] inline-flex items-center gap-1.5 transition-colors ${btnRadius}`}
               >
                 <span>판매처 메인</span>
                 <ExternalLink size={12} />
@@ -375,35 +338,34 @@ const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
           </div>
         </div>
 
-        {/* Shared Schedule Matrix */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-          <div className="p-3 rounded border border-[#303741] bg-[#11151A] space-y-1">
-            <p className="text-[#929AA6]">응모 · 판매 시작</p>
-            <p className="font-mono-tabular font-medium text-[#F3F4F6]">
+          <div className="p-3 rounded border border-[#E5E7EB] bg-[#F5F6F8] space-y-1">
+            <p className="text-[#667085]">응모 · 판매 시작</p>
+            <p className="font-mono-tabular font-medium text-[#111827]">
               {campaign.startAt
                 ? formatDropDateTime(campaign.startAt, campaign.timezoneLabel)
                 : '-'}
             </p>
           </div>
-          <div className="p-3 rounded border border-[#303741] bg-[#11151A] space-y-1">
-            <p className="text-[#929AA6]">응모 마감</p>
+          <div className="p-3 rounded border border-[#E5E7EB] bg-[#F5F6F8] space-y-1">
+            <p className="text-[#667085]">응모 마감</p>
             <p
               className={`font-mono-tabular font-semibold ${
-                campaignStatus.isUrgent ? 'text-amber-200' : 'text-[#F3F4F6]'
+                campaignStatus.isUrgent ? 'text-[#9A5012]' : 'text-[#111827]'
               }`}
             >
               {campaign.endAt ? formatDropDateTime(campaign.endAt, campaign.timezoneLabel) : '-'}
             </p>
           </div>
-          <div className="p-3 rounded border border-[#303741] bg-[#11151A] space-y-1">
-            <p className="text-[#929AA6]">당첨자 구매 기간</p>
-            <p className="font-mono-tabular font-medium text-[#C5CBD3]">
+          <div className="p-3 rounded border border-[#E5E7EB] bg-[#F5F6F8] space-y-1">
+            <p className="text-[#667085]">당첨자 구매 기간</p>
+            <p className="font-mono-tabular font-medium text-[#111827]">
               {campaign.purchaseWindowText || '개별 상품 안내 참고'}
             </p>
           </div>
-          <div className="p-3 rounded border border-[#303741] bg-[#11151A] space-y-1">
-            <p className="text-[#929AA6]">마지막 정보 확인일</p>
-            <p className="font-mono-tabular font-medium text-[#C5CBD3]">
+          <div className="p-3 rounded border border-[#E5E7EB] bg-[#F5F6F8] space-y-1">
+            <p className="text-[#667085]">마지막 정보 확인일</p>
+            <p className="font-mono-tabular font-medium text-[#667085]">
               {campaign.verifiedAt
                 ? formatDropDateTime(campaign.verifiedAt, campaign.timezoneLabel)
                 : '-'}
@@ -411,17 +373,16 @@ const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
           </div>
         </div>
 
-        {/* Shared Participation Rules */}
         {campaign.conditions && (
-          <div className="border border-[#303741] rounded-md bg-[#080A0D]">
+          <div className="border border-[#E5E7EB] rounded-md bg-[#F5F6F8]">
             <button
               type="button"
               onClick={() => setConditionsOpen((v) => !v)}
               aria-expanded={conditionsOpen}
-              className="w-full px-4 py-2.5 flex items-center justify-between text-xs font-medium text-[#C5CBD3] hover:text-[#F3F4F6]"
+              className="w-full min-h-[42px] px-4 py-2.5 flex items-center justify-between text-xs font-medium text-[#111827] hover:text-[#465C77] transition-colors"
             >
               <span className="inline-flex items-center gap-1.5">
-                <CalendarClock size={13} className="text-[#8068BA]" />
+                <CalendarClock size={14} className="text-[#465C77]" />
                 <span>캠페인 공통 참여 조건 및 유의사항</span>
               </span>
               <ChevronDown
@@ -430,7 +391,7 @@ const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
               />
             </button>
             {conditionsOpen && (
-              <div className="px-4 pb-3.5 pt-1 text-xs text-[#929AA6] whitespace-pre-line leading-relaxed border-t border-[#303741]/60">
+              <div className="px-4 pb-3.5 pt-2 text-xs text-[#667085] whitespace-pre-line leading-relaxed border-t border-[#E5E7EB]">
                 {campaign.conditions}
               </div>
             )}
@@ -438,7 +399,6 @@ const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
         )}
       </div>
 
-      {/* Product Cards inside Campaign */}
       <div className="p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {items.map((drop) => (
           <DropCard
@@ -446,7 +406,6 @@ const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
             drop={drop}
             hideCampaignConditions={Boolean(campaign.conditions)}
             btnRadius={btnRadius}
-            isAdminVerified={isAdminVerified}
           />
         ))}
       </div>
@@ -455,8 +414,7 @@ const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
 };
 
 export const DropsPage: React.FC = () => {
-  const { config, retailCampaigns, retailDrops, sponsors, isPreviewDraft, isAdminVerified } =
-    useSite();
+  const { config, retailCampaigns, retailDrops, sponsors, isPreviewDraft } = useSite();
   const [saleTypeFilter, setSaleTypeFilter] = useState<'전체' | DropSaleType>('전체');
   const [tcgFilter, setTcgFilter] = useState<'전체' | DropTcgCategory>('전체');
   const [countryFilter, setCountryFilter] = useState<'전체' | DropCountry>('전체');
@@ -495,18 +453,23 @@ export const DropsPage: React.FC = () => {
     });
   }, [retailDrops, saleTypeFilter, tcgFilter, countryFilter, searchQuery, campaignMap]);
 
-  const { activeDrops, endedDrops } = useMemo(() => {
-    const active: RetailDrop[] = [];
+  const { inProgressDrops, upcomingDrops, endedDrops } = useMemo(() => {
+    const inProgress: RetailDrop[] = [];
+    const upcoming: RetailDrop[] = [];
     const ended: RetailDrop[] = [];
+
     filteredDrops.forEach((drop) => {
       const status = getDropStatusInfo(drop);
       if (status.isEnded) {
         ended.push(drop);
+      } else if (isUpcomingStatus(status.label)) {
+        upcoming.push(drop);
       } else {
-        active.push(drop);
+        inProgress.push(drop);
       }
     });
-    return { activeDrops: active, endedDrops: ended };
+
+    return { inProgressDrops: inProgress, upcomingDrops: upcoming, endedDrops: ended };
   }, [filteredDrops]);
 
   const groupDropsByCampaign = (list: RetailDrop[]) => {
@@ -526,7 +489,6 @@ export const DropsPage: React.FC = () => {
       }
     });
 
-    // Sort campaigns: pinned first, then order
     campOrder.sort((a, b) => {
       const ca = campaignMap.get(a);
       const cb = campaignMap.get(b);
@@ -545,7 +507,14 @@ export const DropsPage: React.FC = () => {
     };
   };
 
-  const activeGrouped = useMemo(() => groupDropsByCampaign(activeDrops), [activeDrops, campaignMap]);
+  const inProgressGrouped = useMemo(
+    () => groupDropsByCampaign(inProgressDrops),
+    [inProgressDrops, campaignMap]
+  );
+  const upcomingGrouped = useMemo(
+    () => groupDropsByCampaign(upcomingDrops),
+    [upcomingDrops, campaignMap]
+  );
   const endedGrouped = useMemo(() => {
     const visibleEnded = showArchived
       ? endedDrops
@@ -558,53 +527,41 @@ export const DropsPage: React.FC = () => {
   return (
     <>
       <SeoManager
-        title="TCG 정가 구매·추첨 정보"
+        title="DROPS · 정가 구매·추첨 정보"
         description="한국·일본·미국 포켓몬·원피스 및 주요 TCG 공식 정가 판매, 추첨(래플), 선착순, 예약 판매 통합 안내."
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 space-y-8">
-        {/* Page Header */}
-        <header className="border-b border-[#303741] pb-6 space-y-3">
-          <p className="font-brand text-xs tracking-[0.2em] text-[#929AA6]">
-            RETAIL DROP &amp; RAFFLE HUB
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-10">
+        <header className="border-b border-[#E5E7EB] pb-7 space-y-4">
+          <p className="font-mono-tabular text-[11px] tracking-[0.22em] uppercase text-[#465C77] font-semibold">
+            NOVA DROPS · OFFICIAL RETAIL &amp; RAFFLES
           </p>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div className="space-y-1.5">
-              <h1 className="text-2xl sm:text-3xl font-semibold text-[#F3F4F6]">
+            <div className="space-y-2">
+              <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#111827]">
                 정가 구매 · 추첨 통합 정보
               </h1>
-              <p className="text-sm text-[#929AA6] max-w-2xl">
-                국내외 공식 판매처의 추첨, 일반 정가 판매, 선착순, 예약 판매 일정과 참여 조건을 한눈에 확인하고 공식 페이지로 바로 이동할 수 있습니다.
+              <p className="text-sm sm:text-base text-[#667085] max-w-2xl leading-relaxed">
+                국내외 공식 판매처의 추첨, 일반 정가 판매, 선착순, 예약 판매 일정과 참여 조건을 빠르게 확인하고 공식 페이지로 바로 이동할 수 있습니다.
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs font-mono-tabular text-[#C5CBD3] shrink-0">
-              <span>진행·예정 {activeDrops.length}건</span>
-              <span aria-hidden="true" className="text-[#303741]">
-                |
-              </span>
-              <span className="text-[#929AA6]">종료 {endedDrops.length}건</span>
-              {isAdminVerified && (
-                <Link
-                  to="/admin?tab=drops"
-                  className={`ml-1 px-3 py-1.5 font-sans text-xs font-medium border border-[#8068BA]/60 bg-[#8068BA]/15 text-[#E3DCF7] hover:border-[#C5CBD3] inline-flex items-center gap-1.5 ${btnRadius}`}
-                >
-                  <Camera size={12} />
-                  <span>관리자 사진 등록</span>
-                </Link>
-              )}
+            <div className="flex flex-wrap items-center gap-3 text-xs font-mono-tabular text-[#667085] shrink-0">
+              <span className="text-[#0F6B4B] font-semibold">진행 중 {inProgressDrops.length}건</span>
+              <span aria-hidden="true" className="text-[#D1D5DB]">·</span>
+              <span className="text-[#465C77] font-semibold">예정 {upcomingDrops.length}건</span>
+              <span aria-hidden="true" className="text-[#D1D5DB]">·</span>
+              <span>종료 {endedDrops.length}건</span>
             </div>
           </div>
 
-          {/* Honest Platform Disclaimer */}
-          <div className="mt-2 p-3.5 rounded-md border border-[#303741] bg-[#11151A] flex items-start gap-2.5 text-xs text-[#929AA6] leading-relaxed">
-            <Info size={15} className="text-[#8068BA] shrink-0 mt-0.5" aria-hidden="true" />
+          <div className="p-4 rounded-md border border-[#E5E7EB] bg-[#F5F6F8] flex items-start gap-3 text-xs text-[#667085] leading-relaxed">
+            <Info size={16} className="text-[#465C77] shrink-0 mt-0.5" aria-hidden="true" />
             <p>
               NOVA는 공식 판매·추첨 일정을 안내하는 정보 플랫폼이며 직접 응모를 접수하거나 대행하지 않습니다. 추첨 마감 상태는 등록된 기준 시각에 따라 자동 전환되며, 일반 정가 판매의 실시간 재고 여부는 반드시 공식 판매처 페이지에서 직접 확인해 주세요.
             </p>
           </div>
         </header>
 
-        {/* Optional Drops Page Sponsor Banner (zero empty slots) */}
         {dropsBannerSponsors.length > 0 && (
           <div className="space-y-3">
             {dropsBannerSponsors.map((sp) => (
@@ -621,15 +578,13 @@ export const DropsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Filters */}
         <section
           aria-label="정가 구매 및 추첨 필터"
-          className="border border-[#303741] rounded-lg p-4 sm:p-5 bg-[#11151A] space-y-4"
+          className="border border-[#E5E7EB] rounded-lg p-4 sm:p-5 bg-[#FFFFFF] space-y-4"
         >
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
-            {/* Sale Type */}
             <div className="lg:col-span-5 space-y-1.5">
-              <p className="text-[11px] font-medium text-[#929AA6]">판매 유형</p>
+              <p className="text-[11px] font-medium text-[#667085]">판매 유형</p>
               <div className="flex flex-wrap gap-1.5">
                 {SALE_TYPES.map((type) => {
                   const active = saleTypeFilter === type;
@@ -638,10 +593,10 @@ export const DropsPage: React.FC = () => {
                       key={type}
                       type="button"
                       onClick={() => setSaleTypeFilter(type)}
-                      className={`min-h-[34px] px-3 py-1 text-xs font-medium rounded border transition-colors ${
+                      className={`min-h-[38px] px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
                         active
-                          ? 'bg-[#C5CBD3] text-[#080A0D] border-[#C5CBD3]'
-                          : 'bg-[#171C23] text-[#929AA6] border-[#303741] hover:text-[#F3F4F6]'
+                          ? 'bg-[#111827] text-[#FFFFFF] border-[#111827]'
+                          : 'bg-[#F5F6F8] text-[#667085] border-[#E5E7EB] hover:text-[#111827]'
                       }`}
                     >
                       {type}
@@ -651,17 +606,16 @@ export const DropsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* TCG & Country */}
             <div className="lg:col-span-4 grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label htmlFor="drops-tcg-filter" className="block text-[11px] font-medium text-[#929AA6]">
+                <label htmlFor="drops-tcg-filter" className="block text-[11px] font-medium text-[#667085]">
                   TCG 종류
                 </label>
                 <select
                   id="drops-tcg-filter"
                   value={tcgFilter}
                   onChange={(e) => setTcgFilter(e.target.value as '전체' | DropTcgCategory)}
-                  className="w-full min-h-[36px] px-2.5 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                  className="w-full min-h-[38px] px-2.5 text-xs bg-[#F5F6F8] border border-[#E5E7EB] rounded text-[#111827]"
                 >
                   {TCG_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
@@ -671,14 +625,14 @@ export const DropsPage: React.FC = () => {
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label htmlFor="drops-country-filter" className="block text-[11px] font-medium text-[#929AA6]">
+                <label htmlFor="drops-country-filter" className="block text-[11px] font-medium text-[#667085]">
                   국가
                 </label>
                 <select
                   id="drops-country-filter"
                   value={countryFilter}
                   onChange={(e) => setCountryFilter(e.target.value as '전체' | DropCountry)}
-                  className="w-full min-h-[36px] px-2.5 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                  className="w-full min-h-[38px] px-2.5 text-xs bg-[#F5F6F8] border border-[#E5E7EB] rounded text-[#111827]"
                 >
                   {COUNTRIES.map((c) => (
                     <option key={c} value={c}>
@@ -689,15 +643,14 @@ export const DropsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Search */}
             <div className="lg:col-span-3 space-y-1.5">
-              <label htmlFor="drops-search" className="block text-[11px] font-medium text-[#929AA6]">
+              <label htmlFor="drops-search" className="block text-[11px] font-medium text-[#667085]">
                 검색
               </label>
               <div className="relative">
                 <Search
                   size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#929AA6]"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#667085]"
                   aria-hidden="true"
                 />
                 <input
@@ -706,21 +659,21 @@ export const DropsPage: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="제품명·판매처·캠페인..."
-                  className="w-full min-h-[36px] pl-8 pr-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6] placeholder:text-[#929AA6]/60"
+                  className="w-full min-h-[38px] pl-8 pr-3 text-xs bg-[#F5F6F8] border border-[#E5E7EB] rounded text-[#111827] placeholder:text-[#667085]"
                 />
               </div>
             </div>
           </div>
 
           {archivedCount > 0 && (
-            <div className="pt-3 border-t border-[#303741]/60 flex items-center justify-between text-xs">
-              <span className="text-[#929AA6]">
+            <div className="pt-3 border-t border-[#E5E7EB] flex items-center justify-between text-xs">
+              <span className="text-[#667085]">
                 아카이브된 종료 추첨 {archivedCount}건이 숨김 처리되어 있습니다.
               </span>
               <button
                 type="button"
                 onClick={() => setShowArchived((v) => !v)}
-                className="text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 font-medium"
+                className="text-[#111827] hover:text-[#465C77] inline-flex items-center gap-1.5 font-medium"
               >
                 <Archive size={13} />
                 <span>{showArchived ? '아카이브 숨기기' : '아카이브 기록 보기'}</span>
@@ -729,94 +682,120 @@ export const DropsPage: React.FC = () => {
           )}
         </section>
 
-        {/* Active / Upcoming Drops */}
-        {activeDrops.length === 0 ? (
-          <div className="border border-[#303741] rounded-lg p-10 text-center bg-[#11151A] space-y-2">
-            <p className="text-sm font-medium text-[#F3F4F6]">
-              선택한 조건에 해당하는 진행 중/예정 정보가 없습니다
-            </p>
-            <p className="text-xs text-[#929AA6]">
-              필터를 전체로 초기화하거나 아래 종료·아카이브 기록을 확인해 보세요.
-            </p>
+        {/* 1. In Progress */}
+        <section className="space-y-6">
+          <div className="flex items-end justify-between border-b border-[#E5E7EB] pb-3">
+            <div>
+              <p className="font-mono-tabular text-[11px] tracking-[0.18em] uppercase text-[#0F6B4B] font-semibold">
+                LIVE NOW · OPEN
+              </p>
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#111827]">진행 중</h2>
+            </div>
+            <span className="font-mono-tabular text-xs text-[#667085]">{inProgressDrops.length}건</span>
           </div>
-        ) : (
-          <div className="space-y-8">
-            {activeGrouped.campaigns.map(({ campaign, items }) => (
-              <CampaignGroupBlock
-                key={campaign.id}
-                campaign={campaign}
-                items={items}
-                btnRadius={btnRadius}
-                isAdminVerified={isAdminVerified}
-              />
-            ))}
 
-            {activeGrouped.standalone.length > 0 && (
-              <section className="space-y-4">
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-xs tracking-[0.16em] text-[#929AA6] mb-1">DIRECT DROPS</p>
-                    <h2 className="text-lg sm:text-xl font-semibold text-[#F3F4F6]">
-                      개별 정가 판매 · 추첨 정보
-                    </h2>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {activeGrouped.standalone.map((drop) => (
-                    <DropCard
-                      key={drop.id}
-                      drop={drop}
-                      btnRadius={btnRadius}
-                      isAdminVerified={isAdminVerified}
-                    />
+          {inProgressDrops.length === 0 ? (
+            <div className="border border-[#E5E7EB] rounded-lg p-8 text-center bg-[#FFFFFF] space-y-1.5">
+              <p className="text-sm font-medium text-[#111827]">
+                현재 조건에 맞는 진행 중인 판매·추첨이 없습니다
+              </p>
+              <p className="text-xs text-[#667085]">
+                필터를 초기화하거나 시작 예정 및 종료 기록을 확인해 보세요.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {inProgressGrouped.campaigns.map(({ campaign, items }) => (
+                <CampaignGroupBlock
+                  key={`active_${campaign.id}`}
+                  campaign={campaign}
+                  items={items}
+                  btnRadius={btnRadius}
+                />
+              ))}
+              {inProgressGrouped.standalone.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {inProgressGrouped.standalone.map((drop) => (
+                    <DropCard key={drop.id} drop={drop} btnRadius={btnRadius} />
                   ))}
                 </div>
-              </section>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* 2. Upcoming */}
+        {upcomingDrops.length > 0 && (
+          <section className="space-y-6">
+            <div className="flex items-end justify-between border-b border-[#E5E7EB] pb-3">
+              <div>
+                <p className="font-mono-tabular text-[11px] tracking-[0.18em] uppercase text-[#465C77] font-semibold">
+                  UPCOMING SCHEDULE
+                </p>
+                <h2 className="text-xl sm:text-2xl font-semibold text-[#111827]">시작 예정</h2>
+              </div>
+              <span className="font-mono-tabular text-xs text-[#667085]">{upcomingDrops.length}건</span>
+            </div>
+
+            <div className="space-y-6">
+              {upcomingGrouped.campaigns.map(({ campaign, items }) => (
+                <CampaignGroupBlock
+                  key={`upcoming_${campaign.id}`}
+                  campaign={campaign}
+                  items={items}
+                  btnRadius={btnRadius}
+                />
+              ))}
+              {upcomingGrouped.standalone.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {upcomingGrouped.standalone.map((drop) => (
+                    <DropCard key={drop.id} drop={drop} btnRadius={btnRadius} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
         )}
 
-        {/* Ended / Archived History */}
+        {/* 3. Ended / Archived */}
         {(endedGrouped.campaigns.length > 0 || endedGrouped.standalone.length > 0) && (
-          <section className="pt-6 border-t border-[#303741] space-y-6">
-            <div className="flex items-center justify-between gap-4">
+          <section className="pt-4 space-y-6">
+            <div className="flex items-center justify-between gap-4 border-b border-[#E5E7EB] pb-3">
               <div>
-                <p className="text-xs tracking-[0.16em] text-[#929AA6] mb-1">ARCHIVED &amp; ENDED</p>
-                <h2 className="text-lg font-semibold text-[#C5CBD3]">마감 · 아카이브 기록</h2>
+                <p className="font-mono-tabular text-[11px] tracking-[0.18em] uppercase text-[#667085] font-semibold">
+                  ARCHIVED &amp; ENDED
+                </p>
+                <h2 className="text-xl font-semibold text-[#667085]">종료</h2>
               </div>
               {archivedCount > 0 && (
                 <button
                   type="button"
                   onClick={() => setShowArchived((v) => !v)}
-                  className="text-xs text-[#C5CBD3] hover:text-[#F3F4F6] border border-[#303741] px-3 py-1.5 rounded"
+                  className="min-h-[36px] text-xs text-[#111827] hover:text-[#465C77] border border-[#E5E7EB] bg-[#FFFFFF] px-3 py-1.5 rounded"
                 >
                   {showArchived ? '아카이브 항목 접기' : `아카이브 항목 포함 (${archivedCount})`}
                 </button>
               )}
             </div>
 
-            {endedGrouped.campaigns.map(({ campaign, items }) => (
-              <CampaignGroupBlock
-                key={`ended_${campaign.id}`}
-                campaign={campaign}
-                items={items}
-                btnRadius={btnRadius}
-                isAdminVerified={isAdminVerified}
-              />
-            ))}
+            <div className="space-y-6">
+              {endedGrouped.campaigns.map(({ campaign, items }) => (
+                <CampaignGroupBlock
+                  key={`ended_${campaign.id}`}
+                  campaign={campaign}
+                  items={items}
+                  btnRadius={btnRadius}
+                />
+              ))}
 
-            {endedGrouped.standalone.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {endedGrouped.standalone.map((drop) => (
-                  <DropCard
-                    key={drop.id}
-                    drop={drop}
-                    btnRadius={btnRadius}
-                    isAdminVerified={isAdminVerified}
-                  />
-                ))}
-              </div>
-            )}
+              {endedGrouped.standalone.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {endedGrouped.standalone.map((drop) => (
+                    <DropCard key={drop.id} drop={drop} btnRadius={btnRadius} />
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
         )}
       </div>

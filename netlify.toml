@@ -5,6 +5,45 @@
 [build.environment]
   NODE_VERSION = "22"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/news/capabilities"
+  to = "/.netlify/functions/news-capabilities"
+  status = 200
+
+[[redirects]]
+  from = "/api/news/sync"
+  to = "/.netlify/functions/news-sync"
+  status = 200
+
+[[redirects]]
+  from = "/api/news/test-source"
+  to = "/.netlify/functions/news-test-source"
+  status = 200
+
+[[redirects]]
+  from = "/api/news/ai-draft"
+  to = "/.netlify/functions/news-ai-draft"
+  status = 200
+
+[[redirects]]
+  from = "/api/news/diagnose-auth"
+  to = "/.netlify/functions/news-diagnose"
+  status = 200
+
+[[redirects]]
+  from = "/api/news/fetch-feeds"
+  to = "/.netlify/functions/news-fetch-feeds"
+  status = 200
+
+[[redirects]]
+  from = "/api/media/news"
+  to = "/.netlify/functions/news-media"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

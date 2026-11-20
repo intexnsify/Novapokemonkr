@@ -8,23 +8,37 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore';
-import { ASSET_IMAGES, DEFAULT_SITE_CONFIG, LEGACY_DEFAULT_LOGO } from '../../lib/defaults';
+import {
+  ASSET_IMAGES,
+  DEFAULT_HERO_SLIDES,
+  DEFAULT_ORIPA_ITEMS,
+  DEFAULT_SITE_CONFIG,
+  LEGACY_BUYBACK_HERO,
+  LEGACY_DEFAULT_LOGO,
+} from '../../lib/defaults';
 import {
   auth,
   db,
   googleProvider,
   handleFirestoreError,
+  isFirestoreQuotaError,
   OperationType,
   testConnection,
 } from '../../lib/firebase';
 import { normalizeHomeSections } from '../../lib/utils';
+import { registerBrowserBatchDiagnosticHelpers } from '../../lib/newsBatchDiagnostics';
 import {
   AdminUser,
   AnalyticsEvent,
   BuybackRequest,
   EventItem,
   FaqItem,
+  HeroSlide,
+  NewsInboxItem,
+  NewsSource,
+  NewsSyncState,
   Notice,
+  OripaItem,
   Post,
   Product,
   RetailCampaign,
@@ -32,6 +46,7 @@ import {
   Review,
   SiteConfig,
   Sponsor,
+  SponsorExtendedMeta,
 } from '../../types/nova';
 
 export type AdminAuthStatus = 'loading' | 'signed_out' | 'unauthorized' | 'error' | 'authorized';
@@ -46,6 +61,7 @@ export type AdminMenuId =
   | 'products'
   | 'buybacks'
   | 'posts'
+  | 'news_inbox'
   | 'notices'
   | 'sponsors'
   | 'events'
@@ -54,7 +70,8 @@ export type AdminMenuId =
   | 'analytics'
   | 'seo'
   | 'backup'
-  | 'admins';
+  | 'admins'
+  | 'oripa';
 
 interface AdminContextValue {
   authStatus: AdminAuthStatus;
@@ -74,10 +91,11 @@ interface AdminContextValue {
   savingConfig: boolean;
   publishingConfig: boolean;
   saveDraftConfig: (override?: SiteConfig) => Promise<void>;
-  publishDraftToLive: () => Promise<void>;
+  publishDraftToLive: (override?: SiteConfig) => Promise<void>;
   discardDraftChanges: () => Promise<void>;
   statusToast: string | null;
   showToast: (msg: string) => void;
+  quotaWarning: string | null;
 
   products: Product[];
   buybacks: BuybackRequest[];
@@ -89,17 +107,61 @@ interface AdminContextValue {
   faqs: FaqItem[];
   retailCampaigns: RetailCampaign[];
   retailDrops: RetailDrop[];
+  newsSources: NewsSource[];
+  newsInbox: NewsInboxItem[];
+  newsSyncState: NewsSyncState | null;
   analyticsEvents: AnalyticsEvent[];
   admins: AdminUser[];
 }
 
 const AdminContext = createContext<AdminContextValue | null>(null);
 
+function normalizeHeroSlides(rawSlides: HeroSlide[] | undefined, fallbackHeroImage: string): HeroSlide[] {
+  const source = Array.isArray(rawSlides) && rawSlides.length > 0 ? rawSlides : DEFAULT_HERO_SLIDES;
+  return source
+    .map((s, idx) => {
+      const desktop =
+        !s.desktopImageUrl || s.desktopImageUrl === LEGACY_BUYBACK_HERO
+          ? idx === 0
+            ? fallbackHeroImage
+            : ASSET_IMAGES.hero
+          : s.desktopImageUrl;
+      const mobile =
+        !s.mobileImageUrl || s.mobileImageUrl === LEGACY_BUYBACK_HERO
+          ? desktop
+          : s.mobileImageUrl;
+      return {
+        ...s,
+        desktopImageUrl: desktop,
+        mobileImageUrl: mobile,
+        order: Number.isFinite(s.order) ? s.order : idx,
+        visible: s.visible !== false,
+      };
+    })
+    .sort((a, b) => a.order - b.order);
+}
+
 function normalizeSiteConfig(data: Partial<SiteConfig>): SiteConfig {
   const brand = { ...DEFAULT_SITE_CONFIG.brand, ...(data.brand || {}) };
   if (!brand.logoUrl || brand.logoUrl === LEGACY_DEFAULT_LOGO) {
     brand.logoUrl = ASSET_IMAGES.logo;
   }
+  if (!brand.heroImageUrl || brand.heroImageUrl === LEGACY_BUYBACK_HERO) {
+    brand.heroImageUrl = ASSET_IMAGES.hero;
+  }
+  brand.heroSlides = normalizeHeroSlides(data.brand?.heroSlides, brand.heroImageUrl);
+
+  const seo = { ...DEFAULT_SITE_CONFIG.seo, ...(data.seo || {}) };
+  if (!seo.ogImageUrl || seo.ogImageUrl === LEGACY_BUYBACK_HERO) {
+    seo.ogImageUrl = ASSET_IMAGES.hero;
+  }
+
+  const sponsorMeta: Record<string, SponsorExtendedMeta> = data.eventsSettings?.sponsorMeta ?? {};
+  const oripaItems: OripaItem[] =
+    data.eventsSettings?.oripaItems !== undefined
+      ? data.eventsSettings.oripaItems
+      : DEFAULT_ORIPA_ITEMS;
+
   return {
     ...DEFAULT_SITE_CONFIG,
     ...data,
@@ -109,7 +171,7 @@ function normalizeSiteConfig(data: Partial<SiteConfig>): SiteConfig {
     ),
     brand,
     theme: { ...DEFAULT_SITE_CONFIG.theme, ...(data.theme || {}) },
-    seo: { ...DEFAULT_SITE_CONFIG.seo, ...(data.seo || {}) },
+    seo,
     legal: {
       ...DEFAULT_SITE_CONFIG.legal,
       ...(data.legal || {}),
@@ -123,6 +185,8 @@ function normalizeSiteConfig(data: Partial<SiteConfig>): SiteConfig {
         data.eventsSettings?.hideEndedEventsGlobally ??
         DEFAULT_SITE_CONFIG.eventsSettings?.hideEndedEventsGlobally ??
         false,
+      sponsorMeta,
+      oripaItems,
     },
   };
 }
@@ -137,6 +201,7 @@ const VALID_ADMIN_MENUS: AdminMenuId[] = [
   'products',
   'buybacks',
   'posts',
+  'news_inbox',
   'notices',
   'sponsors',
   'events',
@@ -146,6 +211,7 @@ const VALID_ADMIN_MENUS: AdminMenuId[] = [
   'seo',
   'backup',
   'admins',
+  'oripa',
 ];
 
 function getInitialAdminMenu(): AdminMenuId {
@@ -166,6 +232,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [savingConfig, setSavingConfig] = useState(false);
   const [publishingConfig, setPublishingConfig] = useState(false);
   const [statusToast, setStatusToast] = useState<string | null>(null);
+  const [quotaWarning, setQuotaWarning] = useState<string | null>(null);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [buybacks, setBuybacks] = useState<BuybackRequest[]>([]);
@@ -177,6 +244,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [faqs, setFaqs] = useState<FaqItem[]>([]);
   const [retailCampaigns, setRetailCampaigns] = useState<RetailCampaign[]>([]);
   const [retailDrops, setRetailDrops] = useState<RetailDrop[]>([]);
+  const [newsSources, setNewsSources] = useState<NewsSource[]>([]);
+  const [newsInbox, setNewsInbox] = useState<NewsInboxItem[]>([]);
+  const [newsSyncState, setNewsSyncState] = useState<NewsSyncState | null>(null);
   const [analyticsEvents, setAnalyticsEvents] = useState<AnalyticsEvent[]>([]);
   const [admins, setAdmins] = useState<AdminUser[]>([]);
 
@@ -259,7 +329,22 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch (err) {
         if (!mounted) return;
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.toLowerCase().includes('permission')) {
+        if (isFirestoreQuotaError(err)) {
+          if (
+            currentUser.emailVerified &&
+            currentUser.email?.toLowerCase() === 'jwkim9633@gmail.com'
+          ) {
+            setQuotaWarning(
+              'Firestore 일일 무료 읽기/쓰기 한도(Quota)에 도달했습니다. 편집 중인 내용은 브라우저 로컬 임시저장에 보관됩니다.'
+            );
+            setAuthStatus('authorized');
+          } else {
+            setAuthError(
+              'Firestore 일일 무료 읽기 한도(Quota)가 초과되어 관리자 권한을 확인할 수 없습니다. 한도 초기화 후 다시 시도해 주세요.'
+            );
+            setAuthStatus('error');
+          }
+        } else if (msg.toLowerCase().includes('permission')) {
           setAuthStatus('unauthorized');
         } else {
           setAuthError(`관리자 권한 확인 중 오류가 발생했습니다: ${msg}`);
@@ -281,7 +366,18 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Attach real-time Firestore listeners ONLY when authorized
   useEffect(() => {
     if (authStatus !== 'authorized' || !user) return;
+    registerBrowserBatchDiagnosticHelpers();
     const unsubs: (() => void)[] = [];
+
+    const onAdminListenerError = (err: unknown, op: OperationType, path: string) => {
+      if (isFirestoreQuotaError(err)) {
+        setQuotaWarning(
+          'Firestore 무료 일일 읽기 한도(Quota)에 도달했습니다. 작성 중인 기사는 브라우저 로컬 임시저장에 안전하게 유지됩니다.'
+        );
+        return;
+      }
+      handleFirestoreError(err, op, path);
+    };
 
     // Load draft config (fallback to published or default)
     async function loadDraft() {
@@ -298,7 +394,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
         setDraftConfig(DEFAULT_SITE_CONFIG);
       } catch (err) {
-        handleFirestoreError(err, OperationType.GET, 'site_config/draft');
+        onAdminListenerError(err, OperationType.GET, 'site_config/draft');
       }
     }
     loadDraft();
@@ -312,7 +408,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               .map((d) => ({ id: d.id, ...d.data() } as Product))
               .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
           ),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'products')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'products')
       )
     );
     unsubs.push(
@@ -322,28 +418,28 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setBuybacks(
             s.docs.map((d) => ({ id: d.id, ...d.data() } as BuybackRequest))
           ),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'buyback_requests')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'buyback_requests')
       )
     );
     unsubs.push(
       onSnapshot(
         collection(db, 'posts'),
         (s) => setPosts(s.docs.map((d) => ({ id: d.id, ...d.data() } as Post))),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'posts')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'posts')
       )
     );
     unsubs.push(
       onSnapshot(
         collection(db, 'notices'),
         (s) => setNotices(s.docs.map((d) => ({ id: d.id, ...d.data() } as Notice))),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'notices')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'notices')
       )
     );
     unsubs.push(
       onSnapshot(
         collection(db, 'events'),
         (s) => setEvents(s.docs.map((d) => ({ id: d.id, ...d.data() } as EventItem))),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'events')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'events')
       )
     );
     unsubs.push(
@@ -355,14 +451,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               .map((d) => ({ id: d.id, ...d.data() } as Sponsor))
               .sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99))
           ),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'sponsors')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'sponsors')
       )
     );
     unsubs.push(
       onSnapshot(
         collection(db, 'reviews'),
         (s) => setReviews(s.docs.map((d) => ({ id: d.id, ...d.data() } as Review))),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'reviews')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'reviews')
       )
     );
     unsubs.push(
@@ -374,7 +470,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               .map((d) => ({ id: d.id, ...d.data() } as FaqItem))
               .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
           ),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'faqs')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'faqs')
       )
     );
     unsubs.push(
@@ -384,14 +480,14 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setAnalyticsEvents(
             s.docs.map((d) => ({ id: d.id, ...d.data() } as AnalyticsEvent))
           ),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'analytics_events')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'analytics_events')
       )
     );
     unsubs.push(
       onSnapshot(
         collection(db, 'admins'),
         (s) => setAdmins(s.docs.map((d) => ({ uid: d.id, ...d.data() } as AdminUser))),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'admins')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'admins')
       )
     );
     unsubs.push(
@@ -401,7 +497,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setRetailCampaigns(
             s.docs.map((d) => ({ id: d.id, ...d.data() } as RetailCampaign))
           ),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'retail_campaigns')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'retail_campaigns')
       )
     );
     unsubs.push(
@@ -413,7 +509,36 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               .map((d) => ({ id: d.id, ...d.data() } as RetailDrop))
               .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
           ),
-        (err) => handleFirestoreError(err, OperationType.LIST, 'retail_drops')
+        (err) => onAdminListenerError(err, OperationType.LIST, 'retail_drops')
+      )
+    );
+    unsubs.push(
+      onSnapshot(
+        collection(db, 'news_sources'),
+        (s) =>
+          setNewsSources(s.docs.map((d) => ({ id: d.id, ...d.data() } as NewsSource))),
+        (err) => onAdminListenerError(err, OperationType.LIST, 'news_sources')
+      )
+    );
+    unsubs.push(
+      onSnapshot(
+        collection(db, 'news_inbox'),
+        (s) =>
+          setNewsInbox(s.docs.map((d) => ({ id: d.id, ...d.data() } as NewsInboxItem))),
+        (err) => onAdminListenerError(err, OperationType.LIST, 'news_inbox')
+      )
+    );
+    unsubs.push(
+      onSnapshot(
+        doc(db, 'news_sync_state', 'global'),
+        (s) => {
+          if (s.exists()) {
+            setNewsSyncState({ id: s.id, ...s.data() } as NewsSyncState);
+          } else {
+            setNewsSyncState(null);
+          }
+        },
+        (err) => onAdminListenerError(err, OperationType.GET, 'news_sync_state/global')
       )
     );
 
@@ -474,19 +599,24 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const publishDraftToLive = async () => {
+  const publishDraftToLive = async (override?: SiteConfig) => {
     if (!user) return;
     setPublishingConfig(true);
+    const target = override || draftConfig;
     try {
       const payload = {
-        brand: draftConfig.brand,
-        theme: draftConfig.theme,
-        homeActions: draftConfig.homeActions,
-        homeSections: draftConfig.homeSections,
-        communityLinks: draftConfig.communityLinks,
-        seo: draftConfig.seo,
-        legal: draftConfig.legal,
-        eventsSettings: draftConfig.eventsSettings || { hideEndedEventsGlobally: false },
+        brand: target.brand,
+        theme: target.theme,
+        homeActions: target.homeActions,
+        homeSections: target.homeSections,
+        communityLinks: target.communityLinks,
+        seo: target.seo,
+        legal: target.legal,
+        eventsSettings: target.eventsSettings || {
+          hideEndedEventsGlobally: false,
+          sponsorMeta: {},
+          oripaItems: DEFAULT_ORIPA_ITEMS,
+        },
         updatedAt: serverTimestamp(),
         updatedBy: user.uid,
       };
@@ -537,6 +667,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         discardDraftChanges,
         statusToast,
         showToast,
+        quotaWarning,
         products,
         buybacks,
         posts,
@@ -547,6 +678,9 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         faqs,
         retailCampaigns,
         retailDrops,
+        newsSources,
+        newsInbox,
+        newsSyncState,
         analyticsEvents,
         admins,
       }}

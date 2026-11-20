@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { AlertCircle, CheckCircle2, ImagePlus, Lock, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2, ImagePlus, Lock, Maximize2, Trash2 } from 'lucide-react';
+import { useSite } from '../context/SiteContext';
 import { trackAnalyticsEvent } from '../lib/analytics';
 import { db } from '../lib/firebase';
 import { uploadBuybackPhoto, validateImageFile } from '../lib/storage';
 import { generateSafeId } from '../lib/utils';
 import { CardLanguage } from '../types/nova';
+import { NewsImageLightbox } from '../components/NewsImageLightbox';
+import { SafeImage } from '../components/SafeImage';
 import { SeoManager } from '../components/SeoManager';
 
 const COOLDOWN_KEY = 'nova_sell_cooldown_until';
@@ -18,6 +22,9 @@ interface PreviewFile {
 }
 
 export const SellPage: React.FC = () => {
+  const { isPreviewDraft, buybackGuideImageUrl } = useSite();
+  const previewSuffix = isPreviewDraft ? '?preview=draft' : '';
+
   const [cardName, setCardName] = useState('');
   const [language, setLanguage] = useState<CardLanguage>('한국어');
   const [condition, setCondition] = useState('');
@@ -26,6 +33,7 @@ export const SellPage: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [contact, setContact] = useState('');
   const [photos, setPhotos] = useState<PreviewFile[]>([]);
+  const [guideLightboxIdx, setGuideLightboxIdx] = useState<number | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -136,11 +144,9 @@ export const SellPage: React.FC = () => {
         updatedAt: serverTimestamp(),
       });
 
-      // Set cooldown only on success
       localStorage.setItem(COOLDOWN_KEY, String(Date.now() + COOLDOWN_SECONDS * 1000));
       setCooldownLeft(COOLDOWN_SECONDS);
 
-      // Revoke previews & reset form
       photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       setPhotos([]);
       setCardName('');
@@ -151,7 +157,6 @@ export const SellPage: React.FC = () => {
       setContact('');
       setSubmittedId(submissionId);
     } catch (err) {
-      // Preserve all user inputs and attached photos on failure!
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMsg(
         `접수 중 오류가 발생했습니다 (${msg}). 입력하신 내용과 사진은 그대로 유지되니 확인 후 다시 시도해 주세요.`
@@ -164,38 +169,88 @@ export const SellPage: React.FC = () => {
   return (
     <>
       <SeoManager
-        title="카드 매입 신청"
-        description="NOVA 비공개 Pokémon TCG 카드 매입 신청. 사진 첨부로 간편하게 견적을 받아보세요."
+        title="SELL · 비공개 카드 매입 안내 및 신청"
+        description="NOVA 포켓몬 카드 매입 기준 안내 및 비공개 Pokémon TCG 카드 매입 신청."
       />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-8">
-        <div className="space-y-3 border-b border-[#303741] pb-6">
-          <p className="font-brand text-xs tracking-[0.2em] text-[#929AA6]">PRIVATE BUYBACK</p>
-          <h1 className="text-2xl sm:text-3xl font-semibold text-[#F3F4F6]">카드 매입 신청</h1>
-          <p className="text-sm text-[#929AA6] leading-relaxed">
-            소장 중인 Pokémon TCG 싱글·등급 카드 및 미개봉 박스의 매입을 접수합니다.
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-8">
+        <div className="space-y-4 border-b border-[#E5E7EB] pb-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-mono-tabular text-[11px] tracking-[0.22em] uppercase text-[#465C77] font-semibold">
+              NOVA MARKET · PRIVATE BUYBACK
+            </p>
+            <Link
+              to={`/shop${previewSuffix}`}
+              className="text-xs font-medium text-[#667085] hover:text-[#111827] inline-flex items-center gap-1"
+            >
+              <ArrowLeft size={13} />
+              <span>스토어 카탈로그 보기</span>
+            </Link>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#111827]">
+            카드 매입 안내 · 비공개 신청
+          </h1>
+          <p className="text-sm sm:text-base text-[#667085] leading-relaxed">
+            소장 중인 Pokémon TCG 싱글·등급 카드 및 미개봉 박스의 매입 기준을 확인하고 견적을 접수하실 수 있습니다.
           </p>
-          <div className="flex items-start gap-2.5 pt-1 text-xs text-[#C5CBD3]">
-            <Lock size={14} className="mt-0.5 shrink-0 text-[#8068BA]" />
+          <div className="flex items-start gap-2.5 p-3.5 rounded-md border border-[#E5E7EB] bg-[#F5F6F8] text-xs text-[#667085]">
+            <Lock size={14} className="mt-0.5 shrink-0 text-[#465C77]" />
             <span>
-              제출된 카드 정보·사진·연락처는 보안 저장소에 암호화 보관되며 일반 방문자에게 절대 공개되지 않습니다.
+              제출된 카드 정보·사진·연락처는 보안 저장소에 보관되며 일반 방문자에게 절대 공개되지 않습니다.
             </span>
           </div>
         </div>
 
+        {/* Dedicated Buyback Guide Card (Relocated exclusively from Home Hero) */}
+        {buybackGuideImageUrl && (
+          <section className="border border-[#E5E7EB] rounded-lg overflow-hidden bg-[#FFFFFF]">
+            <div className="px-5 py-3.5 border-b border-[#E5E7EB] bg-[#F5F6F8] flex items-center justify-between gap-3">
+              <div>
+                <p className="font-mono-tabular text-[11px] uppercase tracking-wider text-[#465C77] font-semibold">
+                  BUYBACK GUIDE
+                </p>
+                <h2 className="text-sm sm:text-base font-semibold text-[#111827]">
+                  포켓몬 카드 매입 안내 및 기준 가이드
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGuideLightboxIdx(0)}
+                className="min-h-[36px] px-3 py-1.5 text-xs font-medium border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] rounded-md hover:border-[#111827] inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Maximize2 size={13} />
+                <span>크게 보기</span>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setGuideLightboxIdx(0)}
+              aria-label="매입 안내표 확대 보기"
+              className="w-full bg-[#F5F6F8] p-3 sm:p-4 flex items-center justify-center cursor-zoom-in"
+            >
+              <SafeImage
+                src={buybackGuideImageUrl}
+                alt="포켓몬 카드 매입 안내 및 기준 가이드"
+                fallbackTitle="매입 안내 가이드"
+                className="max-h-[420px] w-auto object-contain rounded border border-[#E5E7EB]"
+              />
+            </button>
+          </section>
+        )}
+
         {submittedId && (
-          <div className="border border-[#C5CBD3]/50 rounded-lg p-6 bg-[#171C23] space-y-3">
-            <div className="flex items-center gap-2.5 text-[#F3F4F6]">
-              <CheckCircle2 size={20} className="text-[#C5CBD3]" />
+          <div className="border border-[#B6DFCE] rounded-lg p-6 bg-[#ECF7F2] space-y-3">
+            <div className="flex items-center gap-2.5 text-[#0F6B4B]">
+              <CheckCircle2 size={20} />
               <h2 className="text-base font-semibold">매입 신청이 안전하게 접수되었습니다</h2>
             </div>
-            <p className="text-sm text-[#929AA6] leading-relaxed">
-              접수 번호 <span className="font-mono-tabular text-[#F3F4F6]">{submittedId}</span> 로 저장되었습니다. 관리자 검토 후 기재하신 연락처 또는 Instagram을 통해 안내해 드립니다.
+            <p className="text-sm text-[#111827] leading-relaxed">
+              접수 번호 <span className="font-mono-tabular font-semibold">{submittedId}</span> 로 저장되었습니다. 관리자 검토 후 기재하신 연락처 또는 Instagram을 통해 안내해 드립니다.
             </p>
             <button
               type="button"
               onClick={() => setSubmittedId(null)}
-              className="text-xs font-medium text-[#C5CBD3] underline underline-offset-4 hover:text-[#F3F4F6]"
+              className="text-xs font-semibold text-[#0F6B4B] underline underline-offset-4 hover:opacity-80"
             >
               추가 카드 매입 신청하기
             </button>
@@ -205,24 +260,24 @@ export const SellPage: React.FC = () => {
         {errorMsg && (
           <div
             role="alert"
-            className="border border-red-400/50 rounded-lg p-4 bg-red-950/30 text-sm text-red-200 flex items-start gap-3"
+            className="border border-red-300 rounded-lg p-4 bg-red-50 text-sm text-red-900 flex items-start gap-3"
           >
-            <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-300" />
+            <AlertCircle size={18} className="shrink-0 mt-0.5 text-red-600" />
             <div className="space-y-1">
-              <p className="font-medium">매입 신청을 완료하지 못했습니다</p>
-              <p className="text-xs text-red-200/90 leading-relaxed">{errorMsg}</p>
+              <p className="font-semibold">매입 신청을 완료하지 못했습니다</p>
+              <p className="text-xs text-red-800 leading-relaxed">{errorMsg}</p>
             </div>
           </div>
         )}
 
         <form
           onSubmit={handleSubmit}
-          className="border border-[#303741] rounded-lg p-6 sm:p-8 bg-[#171C23] space-y-6"
+          className="border border-[#E5E7EB] rounded-lg p-6 sm:p-8 bg-[#FFFFFF] space-y-6"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2 space-y-1.5">
-              <label htmlFor="cardName" className="block text-xs font-medium text-[#C5CBD3]">
-                카드 / 상품 이름 <span className="text-[#8068BA]">*</span>
+              <label htmlFor="cardName" className="block text-xs font-semibold text-[#111827]">
+                카드 / 상품 이름 <span className="text-[#465C77]">*</span>
               </label>
               <input
                 id="cardName"
@@ -232,19 +287,19 @@ export const SellPage: React.FC = () => {
                 value={cardName}
                 onChange={(e) => setCardName(e.target.value)}
                 placeholder="예: 블래키 VMAX SA (이브이 히어로즈)"
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#080A0D] border border-[#303741] rounded-md text-[#F3F4F6] placeholder:text-[#929AA6]/60 focus:outline-none focus:border-[#C5CBD3]"
+                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#F5F6F8] border border-[#E5E7EB] rounded-md text-[#111827] placeholder:text-[#667085] focus:outline-none focus:border-[#465C77]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="language" className="block text-xs font-medium text-[#C5CBD3]">
-                언어 <span className="text-[#8068BA]">*</span>
+              <label htmlFor="language" className="block text-xs font-semibold text-[#111827]">
+                언어 <span className="text-[#465C77]">*</span>
               </label>
               <select
                 id="language"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as CardLanguage)}
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#080A0D] border border-[#303741] rounded-md text-[#F3F4F6] focus:outline-none focus:border-[#C5CBD3]"
+                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#F5F6F8] border border-[#E5E7EB] rounded-md text-[#111827] focus:outline-none focus:border-[#465C77]"
               >
                 <option value="한국어">한국어</option>
                 <option value="일본어">일본어</option>
@@ -254,8 +309,8 @@ export const SellPage: React.FC = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="condition" className="block text-xs font-medium text-[#C5CBD3]">
-                등급 · 상태 <span className="text-[#8068BA]">*</span>
+              <label htmlFor="condition" className="block text-xs font-semibold text-[#111827]">
+                등급 · 상태 <span className="text-[#465C77]">*</span>
               </label>
               <input
                 id="condition"
@@ -265,12 +320,12 @@ export const SellPage: React.FC = () => {
                 value={condition}
                 onChange={(e) => setCondition(e.target.value)}
                 placeholder="예: PSA 10 / NM / 미세 백화"
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#080A0D] border border-[#303741] rounded-md text-[#F3F4F6] placeholder:text-[#929AA6]/60 focus:outline-none focus:border-[#C5CBD3]"
+                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#F5F6F8] border border-[#E5E7EB] rounded-md text-[#111827] placeholder:text-[#667085] focus:outline-none focus:border-[#465C77]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="desiredPrice" className="block text-xs font-medium text-[#C5CBD3]">
+              <label htmlFor="desiredPrice" className="block text-xs font-semibold text-[#111827]">
                 희망 매입가 (선택)
               </label>
               <input
@@ -280,13 +335,13 @@ export const SellPage: React.FC = () => {
                 value={desiredPrice}
                 onChange={(e) => setDesiredPrice(e.target.value)}
                 placeholder="예: 350,000원 또는 제안 희망"
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#080A0D] border border-[#303741] rounded-md text-[#F3F4F6] placeholder:text-[#929AA6]/60 focus:outline-none focus:border-[#C5CBD3]"
+                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#F5F6F8] border border-[#E5E7EB] rounded-md text-[#111827] placeholder:text-[#667085] focus:outline-none focus:border-[#465C77]"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="quantity" className="block text-xs font-medium text-[#C5CBD3]">
-                수량 <span className="text-[#8068BA]">*</span>
+              <label htmlFor="quantity" className="block text-xs font-semibold text-[#111827]">
+                수량 <span className="text-[#465C77]">*</span>
               </label>
               <input
                 id="quantity"
@@ -296,12 +351,12 @@ export const SellPage: React.FC = () => {
                 max={9999}
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono-tabular bg-[#080A0D] border border-[#303741] rounded-md text-[#F3F4F6] focus:outline-none focus:border-[#C5CBD3]"
+                className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono-tabular bg-[#F5F6F8] border border-[#E5E7EB] rounded-md text-[#111827] focus:outline-none focus:border-[#465C77]"
               />
             </div>
 
             <div className="sm:col-span-2 space-y-1.5">
-              <label htmlFor="contact" className="block text-xs font-medium text-[#C5CBD3]">
+              <label htmlFor="contact" className="block text-xs font-semibold text-[#111827]">
                 연락처 (선택 · Instagram ID, 이메일 또는 전화번호)
               </label>
               <input
@@ -311,12 +366,12 @@ export const SellPage: React.FC = () => {
                 value={contact}
                 onChange={(e) => setContact(e.target.value)}
                 placeholder="회신받으실 Instagram @아이디 또는 연락처"
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#080A0D] border border-[#303741] rounded-md text-[#F3F4F6] placeholder:text-[#929AA6]/60 focus:outline-none focus:border-[#C5CBD3]"
+                className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-[#F5F6F8] border border-[#E5E7EB] rounded-md text-[#111827] placeholder:text-[#667085] focus:outline-none focus:border-[#465C77]"
               />
             </div>
 
             <div className="sm:col-span-2 space-y-1.5">
-              <label htmlFor="notes" className="block text-xs font-medium text-[#C5CBD3]">
+              <label htmlFor="notes" className="block text-xs font-semibold text-[#111827]">
                 추가 설명 (선택)
               </label>
               <textarea
@@ -326,28 +381,27 @@ export const SellPage: React.FC = () => {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="카드 하자 유무, 직거래/택배 희망 여부 등 참고 사항을 자유롭게 작성해 주세요."
-                className="w-full px-3.5 py-2.5 text-sm bg-[#080A0D] border border-[#303741] rounded-md text-[#F3F4F6] placeholder:text-[#929AA6]/60 focus:outline-none focus:border-[#C5CBD3]"
+                className="w-full px-3.5 py-2.5 text-sm bg-[#F5F6F8] border border-[#E5E7EB] rounded-md text-[#111827] placeholder:text-[#667085] focus:outline-none focus:border-[#465C77]"
               />
             </div>
 
-            {/* Photo Upload (max 4, <= 5MB each) */}
             <div className="sm:col-span-2 space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-medium text-[#C5CBD3]">
+                <label className="block text-xs font-semibold text-[#111827]">
                   사진 첨부 (최대 {MAX_PHOTOS}장 · 장당 5MB 이하 이미지)
                 </label>
-                <span className="text-xs font-mono-tabular text-[#929AA6]">
+                <span className="text-xs font-mono-tabular text-[#667085]">
                   {photos.length} / {MAX_PHOTOS}
                 </span>
               </div>
 
               {photos.length < MAX_PHOTOS && (
-                <label className="flex flex-col items-center justify-center min-h-[112px] border border-dashed border-[#303741] rounded-lg bg-[#11151A] hover:border-[#C5CBD3] cursor-pointer transition-colors p-4 text-center">
-                  <ImagePlus size={22} className="text-[#C5CBD3] mb-2" />
-                  <span className="text-xs font-medium text-[#F3F4F6]">
+                <label className="flex flex-col items-center justify-center min-h-[116px] border border-dashed border-[#D1D5DB] rounded-lg bg-[#F5F6F8] hover:border-[#465C77] cursor-pointer transition-colors p-4 text-center">
+                  <ImagePlus size={22} className="text-[#465C77] mb-2" />
+                  <span className="text-xs font-semibold text-[#111827]">
                     카드 앞·뒷면 또는 슬랩 사진 선택
                   </span>
-                  <span className="text-[11px] text-[#929AA6] mt-1">
+                  <span className="text-[11px] text-[#667085] mt-1">
                     JPG, PNG, WEBP 지원 (5MB 이하)
                   </span>
                   <input
@@ -365,7 +419,7 @@ export const SellPage: React.FC = () => {
                   {photos.map((p, idx) => (
                     <div
                       key={idx}
-                      className="relative aspect-square rounded-md overflow-hidden border border-[#303741] bg-[#080A0D]"
+                      className="relative aspect-square rounded-md overflow-hidden border border-[#E5E7EB] bg-[#F5F6F8]"
                     >
                       <img
                         src={p.previewUrl}
@@ -376,7 +430,7 @@ export const SellPage: React.FC = () => {
                         type="button"
                         onClick={() => removePhoto(idx)}
                         aria-label={`사진 ${idx + 1} 삭제`}
-                        className="absolute top-1.5 right-1.5 w-8 h-8 rounded bg-[#080A0D]/85 text-[#F3F4F6] flex items-center justify-center border border-[#303741] hover:border-[#C5CBD3]"
+                        className="absolute top-1.5 right-1.5 w-8 h-8 rounded bg-[#FFFFFF]/90 text-[#111827] flex items-center justify-center border border-[#E5E7EB] hover:border-red-500 hover:text-red-600 shadow-sm"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -391,7 +445,7 @@ export const SellPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting || cooldownLeft > 0}
-              className="w-full min-h-[48px] px-6 py-3 bg-[#C5CBD3] text-[#080A0D] rounded-md text-sm font-semibold hover:bg-[#F3F4F6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full min-h-[48px] px-6 py-3 bg-[#111827] text-[#FFFFFF] hover:bg-[#465C77] rounded-md text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {submitting
                 ? '사진 업로드 및 매입 접수 중...'
@@ -402,6 +456,21 @@ export const SellPage: React.FC = () => {
           </div>
         </form>
       </div>
+
+      {buybackGuideImageUrl && (
+        <NewsImageLightbox
+          images={[
+            {
+              url: buybackGuideImageUrl,
+              alt: '포켓몬 카드 매입 안내 및 기준 가이드',
+              caption: '포켓몬 카드 매입 안내 및 기준 가이드',
+            },
+          ]}
+          activeIndex={guideLightboxIdx}
+          onClose={() => setGuideLightboxIdx(null)}
+          onChangeIndex={setGuideLightboxIdx}
+        />
+      )}
     </>
   );
 };

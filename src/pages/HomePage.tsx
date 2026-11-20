@@ -3,14 +3,16 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight,
   Bell,
-  Camera,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Instagram,
   Mail,
   MessageCircle,
   Newspaper,
   Pin,
+  Sparkles,
   Youtube,
 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
@@ -25,11 +27,15 @@ import {
   getInstagramDmUrl,
   isRetailRaffleCategory,
   isValidExternalUrl,
+  stripMarkdown,
 } from '../lib/utils';
-import { HomeSectionId, Sponsor } from '../types/nova';
+import { HomeSectionId, Product, Sponsor } from '../types/nova';
+import { HeroSlider } from '../components/HeroSlider';
+import { ProductQuickViewModal } from '../components/ProductQuickViewModal';
 import { getButtonRadiusClass, getSectionSpacingClass } from '../components/PublicLayout';
 import { SafeImage } from '../components/SafeImage';
 import { SeoManager } from '../components/SeoManager';
+import { ShopProductCard } from '../components/ShopProductCard';
 import { SponsorBanner } from '../components/SponsorBanner';
 import { WorkWithNovaSection } from '../components/WorkWithNovaSection';
 
@@ -46,6 +52,13 @@ function getDisplayDomain(url: string): string {
   } catch {
     return url;
   }
+}
+
+function getDropStatusPillClasses(st: { isEnded: boolean; isUrgent: boolean; isActive: boolean }): string {
+  if (st.isEnded) return 'text-[#667085] bg-[#F5F6F8] border-[#E5E7EB]';
+  if (st.isUrgent) return 'text-[#9A5012] bg-[#FDF4EB] border-[#F0CFAF]';
+  if (st.isActive) return 'text-[#0F6B4B] bg-[#ECF7F2] border-[#B6DFCE]';
+  return 'text-[#465C77] bg-[#F1F5F9] border-[#CBD5E1]';
 }
 
 interface PartnerLogoTileProps {
@@ -89,12 +102,12 @@ const PartnerLogoTile: React.FC<PartnerLogoTileProps> = ({
       target="_blank"
       rel="noopener noreferrer"
       onClick={onClickTrack}
-      className="group border border-[#303741] rounded-lg p-5 bg-[#171C23] flex flex-col justify-between gap-3.5 nova-transition hover:border-[#8068BA]/70"
+      className="group border border-[#E5E7EB] rounded-lg p-5 sm:p-6 bg-[#FFFFFF] flex flex-col justify-between gap-4 nova-card-hover hover:border-[#465C77]/60"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3.5 min-w-0">
           {sponsor.logoUrl ? (
-            <div className="w-12 h-12 rounded-md border border-[#303741] bg-[#080A0D] overflow-hidden shrink-0">
+            <div className="w-12 h-12 rounded-md border border-[#E5E7EB] bg-[#F5F6F8] overflow-hidden shrink-0">
               <SafeImage
                 src={sponsor.logoUrl}
                 alt={sponsor.name}
@@ -103,8 +116,8 @@ const PartnerLogoTile: React.FC<PartnerLogoTileProps> = ({
               />
             </div>
           ) : (
-            <div className="w-12 h-12 rounded-md border border-[#303741] bg-[#080A0D] flex items-center justify-center shrink-0">
-              <span className="font-brand text-sm font-bold text-[#C5CBD3] tracking-wider">
+            <div className="w-12 h-12 rounded-md border border-[#E5E7EB] bg-[#F5F6F8] flex items-center justify-center shrink-0">
+              <span className="font-brand text-sm font-bold text-[#111827] tracking-wider">
                 {sponsor.name.slice(0, 2).toUpperCase()}
               </span>
             </div>
@@ -112,16 +125,16 @@ const PartnerLogoTile: React.FC<PartnerLogoTileProps> = ({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-brand text-base font-bold tracking-[0.14em] text-[#F3F4F6] truncate">
+              <h3 className="font-brand text-sm sm:text-base font-bold tracking-[0.14em] text-[#111827] truncate">
                 {sponsor.name}
               </h3>
               {sponsor.isSponsored && (
-                <span className="px-1.5 py-0.5 text-[10px] font-medium border border-[#8068BA]/60 text-[#C5CBD3] bg-[#8068BA]/15 rounded-sm shrink-0">
+                <span className="px-1.5 py-0.5 text-[10px] font-semibold border border-[#CBD5E1] text-[#465C77] bg-[#F1F5F9] rounded-sm shrink-0">
                   {sponsor.badgeLabel || '협찬'}
                 </span>
               )}
             </div>
-            <p className="text-[11px] font-mono-tabular text-[#929AA6] truncate mt-0.5">
+            <p className="text-[11px] font-mono-tabular text-[#667085] truncate mt-0.5">
               {getDisplayDomain(sponsor.url)}
             </p>
           </div>
@@ -129,12 +142,12 @@ const PartnerLogoTile: React.FC<PartnerLogoTileProps> = ({
 
         <ExternalLink
           size={15}
-          className="text-[#929AA6] group-hover:text-[#F3F4F6] group-hover:translate-x-0.5 transition-all shrink-0"
+          className="text-[#667085] group-hover:text-[#465C77] group-hover:translate-x-0.5 transition-all shrink-0"
         />
       </div>
 
       {showSummary && sponsor.description && (
-        <p className="text-xs text-[#929AA6] line-clamp-1 pt-2.5 border-t border-[#303741]/60">
+        <p className="text-xs sm:text-[13px] text-[#667085] line-clamp-2 pt-3 border-t border-[#E5E7EB] leading-relaxed">
           {sponsor.description}
         </p>
       )}
@@ -154,11 +167,14 @@ export const HomePage: React.FC = () => {
     faqs,
     retailCampaigns,
     retailDrops,
+    oripaItems,
     isPreviewDraft,
-    isAdminVerified,
   } = useSite();
+
   const [openFaqId, setOpenFaqId] = useState<string | null>(null);
   const [expandedNoticeId, setExpandedNoticeId] = useState<string | null>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [bannerIdx, setBannerIdx] = useState(0);
 
   useEffect(() => {
     trackAnalyticsEvent('page_view', '/');
@@ -191,21 +207,27 @@ export const HomePage: React.FC = () => {
     [sponsors]
   );
 
-  // Top spotlight prefers explicit 'home_banner' sponsors, falling back to top partner (e.g. REPACK)
-  const topSpotlightSponsor: Sponsor | undefined = useMemo(() => {
-    const explicitBanner = sponsors.find((s) => s.placement === 'home_banner');
-    return explicitBanner || partnerGridSponsors[0];
-  }, [sponsors, partnerGridSponsors]);
+  // Explicit 'home_banner' sponsors — supports carousel when multiple active
+  const homeBannerSponsors = useMemo(
+    () => sponsors.filter((s) => s.placement === 'home_banner'),
+    [sponsors]
+  );
+
+  useEffect(() => {
+    if (bannerIdx >= homeBannerSponsors.length && homeBannerSponsors.length > 0) {
+      setBannerIdx(0);
+    }
+  }, [bannerIdx, homeBannerSponsors.length]);
 
   const retailRafflePosts = useMemo(
     () => posts.filter((p) => isRetailRaffleCategory(p.category)),
     [posts]
   );
 
-  const newsBriefingPosts = useMemo(() => {
-    const nonRetail = posts.filter((p) => !isRetailRaffleCategory(p.category));
-    return nonRetail.length > 0 ? nonRetail : posts;
-  }, [posts]);
+  const newsBriefingPosts = useMemo(
+    () => posts.filter((p) => !isRetailRaffleCategory(p.category)),
+    [posts]
+  );
 
   const pinnedNotice = useMemo(
     () => notices.find((n) => n.isPinned) || notices[0],
@@ -222,6 +244,281 @@ export const HomePage: React.FC = () => {
 
   const renderSection = (sectionId: HomeSectionId, limit: number) => {
     switch (sectionId) {
+      case 'news': {
+        const displayNews = newsBriefingPosts.slice(0, limit || 4);
+        const leadPost = displayNews[0];
+        const secondaryPosts = displayNews.slice(1);
+        return (
+          <section
+            key="news"
+            id="tcg-news"
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
+          >
+            <div className="flex items-end justify-between gap-4 mb-7">
+              <div>
+                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
+                  TCG NEWS BRIEFING
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111827]">
+                  주요 TCG 뉴스
+                </h2>
+              </div>
+              <Link
+                to={`/news${previewSuffix}`}
+                className="text-xs sm:text-sm font-medium text-[#667085] hover:text-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+              >
+                <span>전체 뉴스 보기</span>
+                <ArrowRight size={15} />
+              </Link>
+            </div>
+
+            {displayNews.length === 0 ? (
+              <div className="border border-[#E5E7EB] rounded-lg p-8 bg-[#FFFFFF] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs text-[#667085]">
+                    <Newspaper size={14} aria-hidden="true" />
+                    <span>TCG 뉴스 아카이브</span>
+                  </div>
+                  <p className="text-sm font-medium text-[#111827]">
+                    국내외 포켓몬카드 신규 소식과 에디토리얼 기사가 곧 업데이트됩니다.
+                  </p>
+                </div>
+                <Link
+                  to={`/news${previewSuffix}`}
+                  className="text-xs font-semibold text-[#465C77] hover:text-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                >
+                  <span>아카이브로 이동</span>
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {leadPost && (
+                  <Link
+                    to={`/news/${leadPost.slug}${previewSuffix}`}
+                    className={`group block ${
+                      secondaryPosts.length > 0 ? 'lg:col-span-7' : 'lg:col-span-12'
+                    } border border-[#E5E7EB] rounded-lg overflow-hidden bg-[#FFFFFF] nova-card-hover hover:border-[#D1D5DB]`}
+                  >
+                    {(leadPost.coverImage || leadPost.galleryImages?.[0]?.url) && (
+                      <div className="aspect-[16/10] w-full bg-[#F5F6F8] overflow-hidden border-b border-[#E5E7EB]">
+                        <SafeImage
+                          src={leadPost.coverImage || leadPost.galleryImages?.[0]?.url}
+                          alt={leadPost.title}
+                          fallbackTitle={leadPost.title}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.025]"
+                        />
+                      </div>
+                    )}
+                    <div className="p-6 sm:p-7 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#667085]">
+                        <span className="font-semibold text-[#465C77]">
+                          {leadPost.tcgCategory || leadPost.category}
+                        </span>
+                        {leadPost.sourceName && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span>{leadPost.sourceName}</span>
+                          </>
+                        )}
+                        {leadPost.isPinned && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="text-[#111827] font-medium">대표 기사</span>
+                          </>
+                        )}
+                        <span aria-hidden="true">·</span>
+                        <span className="font-mono-tabular">{formatKST(leadPost.createdAt, false)}</span>
+                      </div>
+                      <h3 className="text-xl sm:text-2xl font-semibold text-[#111827] leading-snug text-balance group-hover:text-[#465C77] transition-colors">
+                        {leadPost.title}
+                      </h3>
+                      {(leadPost.summary || leadPost.content) && (
+                        <p className="text-sm text-[#667085] leading-relaxed line-clamp-3">
+                          {stripMarkdown(leadPost.summary || leadPost.content)}
+                        </p>
+                      )}
+                      <div className="pt-3 border-t border-[#E5E7EB] flex items-center justify-between text-xs font-medium text-[#111827]">
+                        <span>기사 전문 읽기</span>
+                        <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  </Link>
+                )}
+
+                {secondaryPosts.length > 0 && (
+                  <div className="lg:col-span-5 divide-y divide-[#E5E7EB] border-y border-[#E5E7EB] bg-[#FFFFFF]">
+                    {secondaryPosts.map((post) => {
+                      const thumb = post.coverImage || post.galleryImages?.[0]?.url;
+                      return (
+                        <Link
+                          key={post.id}
+                          to={`/news/${post.slug}${previewSuffix}`}
+                          className="group flex items-start gap-4 py-4 px-2 sm:px-3 hover:bg-[#F5F6F8] transition-colors"
+                        >
+                          <div className="flex-1 min-w-0 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-[#667085]">
+                              <span className="font-semibold text-[#465C77]">
+                                {post.tcgCategory || post.category}
+                              </span>
+                              {post.sourceName && (
+                                <>
+                                  <span aria-hidden="true">·</span>
+                                  <span className="truncate">{post.sourceName}</span>
+                                </>
+                              )}
+                              <span aria-hidden="true">·</span>
+                              <span className="font-mono-tabular">
+                                {formatKST(post.createdAt, false)}
+                              </span>
+                            </div>
+                            <h3 className="text-sm sm:text-base font-semibold text-[#111827] leading-snug line-clamp-2 group-hover:text-[#465C77] transition-colors">
+                              {post.title}
+                            </h3>
+                            {(post.summary || post.content) && (
+                              <p className="text-xs text-[#667085] line-clamp-2 leading-relaxed">
+                                {stripMarkdown(post.summary || post.content)}
+                              </p>
+                            )}
+                          </div>
+                          {thumb && (
+                            <div className="w-20 h-20 rounded border border-[#E5E7EB] bg-[#F5F6F8] overflow-hidden shrink-0">
+                              <SafeImage
+                                src={thumb}
+                                alt={post.title}
+                                fallbackTitle={post.title}
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                              />
+                            </div>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {newsInlineSponsors.length > 0 && (
+              <div className="mt-7 space-y-3">
+                {newsInlineSponsors.map((sp) => (
+                  <SponsorBanner
+                    key={sp.id}
+                    sponsor={sp}
+                    placement="news_inline"
+                    path="/"
+                    variant="inline_ad"
+                    buttonRadiusClass={btnRadius}
+                    previewSuffix={previewSuffix}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      }
+
+      case 'featured_products': {
+        const displayLimit = Math.max(4, limit || 8);
+        const allDisplay = products.slice(0, displayLimit);
+        const singlesAndSlabs = allDisplay.filter(
+          (p) => p.category === '등급카드' || p.category === '싱글카드'
+        );
+        const sealedAndOthers = allDisplay.filter(
+          (p) => p.category !== '등급카드' && p.category !== '싱글카드'
+        );
+
+        return (
+          <section
+            key="featured_products"
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB] space-y-9`}
+          >
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
+                  NOVA STORE INVENTORY
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111827]">
+                  NOVA 스토어 컬렉션
+                </h2>
+              </div>
+              <Link
+                to={`/shop${previewSuffix}`}
+                className="text-xs sm:text-sm font-medium text-[#667085] hover:text-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+              >
+                <span>전체 상품 보기</span>
+                <ArrowRight size={15} />
+              </Link>
+            </div>
+
+            {allDisplay.length === 0 ? (
+              <div className="border border-[#E5E7EB] rounded-lg p-8 text-center space-y-2 bg-[#FFFFFF]">
+                <p className="text-sm font-medium text-[#111827]">새로운 컬렉션 입고 준비 중입니다</p>
+                <p className="text-xs text-[#667085]">
+                  찾으시는 특정 등급 카드나 박스가 있다면 Instagram DM으로 문의해 주세요.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Featured Singles & Slabs */}
+                {singlesAndSlabs.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+                      <h3 className="text-base sm:text-lg font-semibold text-[#111827]">
+                        Featured Singles · 등급카드 &amp; 싱글
+                      </h3>
+                      <Link
+                        to={`/shop${previewSuffix}`}
+                        className="text-xs font-medium text-[#465C77] hover:text-[#111827]"
+                      >
+                        싱글 전체 →
+                      </Link>
+                    </div>
+                    <div className={`grid ${getAdaptiveColsClass(singlesAndSlabs.length, 4)} gap-5`}>
+                      {singlesAndSlabs.map((product) => (
+                        <ShopProductCard
+                          key={product.id}
+                          product={product}
+                          previewSuffix={previewSuffix}
+                          onQuickView={setQuickViewProduct}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Featured Products (Sealed Boxes & Packs) */}
+                {sealedAndOthers.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
+                      <h3 className="text-base sm:text-lg font-semibold text-[#111827]">
+                        Featured Products · 미개봉 박스 &amp; 팩
+                      </h3>
+                      <Link
+                        to={`/shop${previewSuffix}`}
+                        className="text-xs font-medium text-[#465C77] hover:text-[#111827]"
+                      >
+                        박스 전체 →
+                      </Link>
+                    </div>
+                    <div className={`grid ${getAdaptiveColsClass(sealedAndOthers.length, 4)} gap-5`}>
+                      {sealedAndOthers.map((product) => (
+                        <ShopProductCard
+                          key={product.id}
+                          product={product}
+                          previewSuffix={previewSuffix}
+                          onQuickView={setQuickViewProduct}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        );
+      }
+
       case 'retail_raffle': {
         const dropsUrl = `/drops${previewSuffix}`;
         const activeDrops = retailDrops.filter((d) => {
@@ -251,46 +548,37 @@ export const HomePage: React.FC = () => {
           <section
             key="retail_raffle"
             id="retail-raffle"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
-            <div className="flex items-end justify-between gap-4 mb-5">
+            <div className="flex items-end justify-between gap-4 mb-7">
               <div>
-                <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
-                  RETAIL DROP &amp; RAFFLE
+                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
+                  OFFICIAL DROPS &amp; RAFFLES
                 </p>
-                <h2 className="text-xl sm:text-2xl font-semibold">정가 구매 · 추첨 정보</h2>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111827]">
+                  정가 구매 · 추첨 정보
+                </h2>
               </div>
-              <div className="flex flex-wrap items-center gap-3 shrink-0">
-                {isAdminVerified && (
-                  <Link
-                    to="/admin?tab=drops"
-                    className="px-2.5 py-1 text-xs font-medium border border-[#8068BA]/60 bg-[#8068BA]/15 text-[#E3DCF7] hover:border-[#C5CBD3] rounded inline-flex items-center gap-1 whitespace-nowrap"
-                  >
-                    <Camera size={12} />
-                    <span>사진·상품 관리</span>
-                  </Link>
-                )}
-                <Link
-                  to={dropsUrl}
-                  className="text-sm font-medium text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 whitespace-nowrap"
-                >
-                  <span>전체 정가·추첨 보기</span>
-                  <ArrowRight size={15} />
-                </Link>
-              </div>
+              <Link
+                to={dropsUrl}
+                className="text-xs sm:text-sm font-medium text-[#667085] hover:text-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+              >
+                <span>전체 정가·추첨 보기</span>
+                <ArrowRight size={15} />
+              </Link>
             </div>
 
             {displayDrops.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {featuredCampaign && (
-                  <div className="border border-[#303741] rounded-lg p-4 sm:p-5 bg-[#11151A] flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="space-y-1 min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#929AA6]">
-                        <span className="font-mono-tabular text-[#8068BA] font-semibold">
-                          ACTIVE CAMPAIGN
+                  <div className="border border-[#E5E7EB] rounded-lg p-5 sm:p-6 bg-[#F5F6F8] flex flex-col md:flex-row md:items-center justify-between gap-5">
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-[#667085]">
+                        <span className="font-mono-tabular text-[#465C77] font-semibold tracking-wider">
+                          CAMPAIGN
                         </span>
                         <span aria-hidden="true">·</span>
-                        <span className="text-[#C5CBD3] font-medium">
+                        <span className="text-[#111827] font-medium">
                           {featuredCampaign.retailer}
                         </span>
                         <span aria-hidden="true">·</span>
@@ -298,18 +586,18 @@ export const HomePage: React.FC = () => {
                         {featuredCampDropCount > 0 && (
                           <>
                             <span aria-hidden="true">·</span>
-                            <span className="font-mono-tabular text-[#C5CBD3]">
-                              총 {featuredCampDropCount}종
+                            <span className="font-mono-tabular text-[#111827]">
+                              대상 {featuredCampDropCount}종
                             </span>
                           </>
                         )}
                       </div>
-                      <h3 className="text-base sm:text-lg font-semibold text-[#F3F4F6] truncate">
+                      <h3 className="text-base sm:text-lg font-semibold text-[#111827] truncate">
                         {featuredCampaign.title}
                       </h3>
-                      <p className="text-xs font-mono-tabular text-[#929AA6]">
-                        응모 마감:{' '}
-                        <span className="text-[#F3F4F6]">
+                      <p className="text-xs font-mono-tabular text-[#667085]">
+                        마감:{' '}
+                        <span className="text-[#111827] font-medium">
                           {formatDropDateTime(
                             featuredCampaign.endAt,
                             featuredCampaign.timezoneLabel
@@ -322,96 +610,72 @@ export const HomePage: React.FC = () => {
                     </div>
                     <Link
                       to={dropsUrl}
-                      className={`min-h-[40px] px-4 py-2 text-xs font-semibold inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${btnRadius}`}
-                      style={{
-                        backgroundColor: 'var(--nova-silver)',
-                        color: 'var(--nova-bg-main)',
-                      }}
+                      className={`min-h-[42px] px-4 py-2 text-xs font-semibold bg-[#111827] text-[#FFFFFF] hover:bg-[#465C77] inline-flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 transition-colors ${btnRadius}`}
                     >
-                      <span>캠페인 전체 조건 · {featuredCampDropCount || displayDrops.length}종 보기</span>
+                      <span>캠페인 조건 · {featuredCampDropCount || displayDrops.length}종 보기</span>
                       <ArrowRight size={14} />
                     </Link>
                   </div>
                 )}
 
-                <div
-                  className={`grid ${
-                    displayDrops.length <= 2
-                      ? 'grid-cols-1 md:grid-cols-2'
-                      : displayDrops.length === 4
-                        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
-                        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                  } gap-4`}
-                >
+                <div className="divide-y divide-[#E5E7EB] border border-[#E5E7EB] rounded-lg bg-[#FFFFFF] overflow-hidden">
                   {displayDrops.map((drop) => {
                     const st = getDropStatusInfo(drop);
                     const hasUrl = isValidExternalUrl(drop.officialUrl);
                     return (
                       <div
                         key={drop.id}
-                        className="border border-[#303741] rounded-lg overflow-hidden bg-[#171C23] flex flex-col justify-between hover:border-[#C5CBD3]/60 nova-transition"
+                        className="p-4 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-[#F5F6F8] transition-colors"
                       >
-                        <div>
-                          <div className="h-36 w-full bg-[#11151A] border-b border-[#303741]/60 overflow-hidden">
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          <div className="w-14 h-14 rounded-md border border-[#E5E7EB] bg-[#F5F6F8] overflow-hidden shrink-0 flex items-center justify-center">
                             {drop.imageUrl ? (
                               <SafeImage
                                 src={drop.imageUrl}
                                 alt={drop.title}
-                                fallbackTitle={drop.title}
-                                className="w-full h-full object-contain p-2 bg-[#0D1015]"
+                                fallbackTitle={drop.tcg}
+                                className="w-full h-full object-contain p-1"
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center px-3 text-center bg-gradient-to-br from-[#11151A] via-[#171C23] to-[#080A0D]">
-                                <span className="font-brand text-[10px] tracking-[0.18em] text-[#929AA6] mb-1">
-                                  {drop.tcg} · {drop.country}
-                                </span>
-                                <span className="text-xs font-medium text-[#C5CBD3] line-clamp-2">
-                                  {drop.title}
-                                </span>
-                              </div>
+                              <span className="font-brand text-[10px] font-bold tracking-wider text-[#667085]">
+                                {drop.country}
+                              </span>
                             )}
                           </div>
 
-                          <div className="p-4 space-y-2.5">
-                            <div className="flex items-center justify-between gap-2 text-[11px] text-[#929AA6]">
-                              <span className="truncate">
-                                {drop.tcg} · {drop.country} · {drop.retailer}
-                              </span>
+                          <div className="min-w-0 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-[#667085]">
                               <span
-                                className={`px-1.5 py-0.5 text-[10px] font-semibold border rounded-sm shrink-0 ${
-                                  st.isEnded
-                                    ? 'border-[#303741] text-[#929AA6]'
-                                    : st.isUrgent
-                                      ? 'border-amber-400/55 text-amber-200'
-                                      : st.isActive
-                                        ? 'border-emerald-400/45 text-emerald-200'
-                                        : 'border-[#303741] text-[#C5CBD3]'
-                                }`}
+                                className={`px-2 py-0.5 text-[11px] font-semibold border rounded-sm ${getDropStatusPillClasses(
+                                  st
+                                )}`}
                               >
                                 {st.label}
                               </span>
+                              <span className="font-medium text-[#111827]">{drop.tcg}</span>
+                              <span aria-hidden="true">·</span>
+                              <span>{drop.country}</span>
+                              <span aria-hidden="true">·</span>
+                              <span className="truncate">{drop.retailer}</span>
                             </div>
-
-                            <h3 className="text-sm sm:text-base font-semibold text-[#F3F4F6] line-clamp-2 leading-snug">
+                            <h3 className="text-sm sm:text-base font-semibold text-[#111827] truncate">
                               {drop.title}
                             </h3>
+                          </div>
+                        </div>
 
-                            <div className="flex items-baseline justify-between gap-2 pt-1 text-xs">
-                              <span className="text-[#929AA6]">{drop.saleType}</span>
-                              <span className="font-mono-tabular text-sm font-semibold text-[#F3F4F6]">
-                                {formatDropPrice(drop.price, drop.currency)}
-                              </span>
-                            </div>
-
+                        <div className="flex items-center justify-between sm:justify-end gap-5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#E5E7EB]">
+                          <div className="sm:text-right">
+                            <p className="font-mono-tabular text-sm sm:text-base font-semibold text-[#111827]">
+                              {formatDropPrice(drop.price, drop.currency)}
+                            </p>
                             {Boolean(drop.endAt) && (
-                              <p className="text-[11px] font-mono-tabular text-[#929AA6] pt-1 border-t border-[#303741]/50">
+                              <p className="text-[11px] font-mono-tabular text-[#667085]">
                                 마감 {formatDropDateTime(drop.endAt, drop.timezoneLabel)}
                               </p>
                             )}
                           </div>
-                        </div>
 
-                        <div className="px-4 pb-4 pt-1 flex items-center gap-2">
                           {hasUrl ? (
                             <a
                               href={drop.officialUrl}
@@ -424,17 +688,17 @@ export const HomePage: React.FC = () => {
                                   targetLabel: drop.title,
                                 })
                               }
-                              className={`min-h-[38px] flex-1 px-3 py-1.5 text-xs font-semibold border border-[#303741] bg-[#11151A] text-[#C5CBD3] hover:text-[#F3F4F6] hover:border-[#C5CBD3] inline-flex items-center justify-center gap-1.5 ${btnRadius}`}
+                              className={`min-h-[38px] px-3.5 py-1.5 text-xs font-medium border border-[#E5E7EB] bg-[#F5F6F8] text-[#111827] hover:border-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ${btnRadius}`}
                             >
-                              <span>공식 페이지</span>
+                              <span>공식처</span>
                               <ExternalLink size={12} />
                             </a>
                           ) : (
                             <Link
                               to={dropsUrl}
-                              className={`min-h-[38px] flex-1 px-3 py-1.5 text-xs font-medium border border-[#303741] text-[#C5CBD3] inline-flex items-center justify-center ${btnRadius}`}
+                              className={`min-h-[38px] px-3.5 py-1.5 text-xs font-medium border border-[#E5E7EB] text-[#667085] inline-flex items-center whitespace-nowrap ${btnRadius}`}
                             >
-                              상세 보기
+                              상세
                             </Link>
                           )}
                         </div>
@@ -444,87 +708,34 @@ export const HomePage: React.FC = () => {
                 </div>
               </div>
             ) : displayRetail.length === 0 ? (
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                <div className="lg:col-span-7 border border-[#303741] rounded-lg p-6 bg-[#171C23] flex flex-col justify-between gap-5">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-[#929AA6]">
-                      <Bell size={14} className="text-[#8068BA]" aria-hidden="true" />
-                      <span>공식 발매 · 사전예약 · 추첨 브리핑</span>
-                    </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-[#F3F4F6]">
-                      신규 확장팩 정가 판매처와 공식 추첨 일정을 모아 전합니다
-                    </h3>
-                    <p className="text-sm text-[#929AA6] leading-relaxed">
-                      포켓몬 스토어, 대형 마트, 공식 유통사 사전예약 및 현장 추첨 소식이 등록되면 이곳에 가장 먼저 표시됩니다.
-                    </p>
+              <div className="border border-[#E5E7EB] rounded-lg p-6 sm:p-8 bg-[#FFFFFF] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-xs text-[#465C77] font-medium">
+                    <Bell size={14} aria-hidden="true" />
+                    <span>공식 발매 · 사전예약 · 추첨 브리핑</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                    <Link
-                      to={dropsUrl}
-                      className={`min-h-[40px] px-4 py-2 text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap ${btnRadius}`}
-                      style={{
-                        backgroundColor: 'var(--nova-silver)',
-                        color: 'var(--nova-bg-main)',
-                      }}
-                    >
-                      <span>정가·추첨 페이지 보기</span>
-                      <ArrowRight size={14} />
-                    </Link>
-                  </div>
+                  <p className="text-sm sm:text-base font-medium text-[#111827]">
+                    신규 확장팩 정가 판매처와 공식 추첨 일정이 등록되면 이곳에 표시됩니다.
+                  </p>
                 </div>
-
-                <div className="lg:col-span-5 border border-[#303741] rounded-lg p-6 bg-[#11151A] flex flex-col justify-between gap-4">
-                  {pinnedNotice ? (
-                    <>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs text-[#929AA6]">
-                          <Pin size={13} className="text-[#8068BA]" aria-hidden="true" />
-                          <span>NOVA 주요 공지</span>
-                          <span aria-hidden="true">·</span>
-                          <span className="font-mono-tabular">{formatKST(pinnedNotice.createdAt, false)}</span>
-                        </div>
-                        <h3 className="text-base font-semibold text-[#F3F4F6] line-clamp-2">
-                          {pinnedNotice.title}
-                        </h3>
-                        <p className="text-xs text-[#929AA6] leading-relaxed line-clamp-3">
-                          {pinnedNotice.content}
-                        </p>
-                      </div>
-                      {dmUrl && (
-                        <a
-                          href={config.brand.instagramUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs font-medium text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 pt-2 border-t border-[#303741]/60"
-                        >
-                          <span>Instagram에서 실시간 알림 보기</span>
-                          <ExternalLink size={13} />
-                        </a>
-                      )}
-                    </>
-                  ) : (
-                    <div className="space-y-3">
-                      <p className="text-xs tracking-[0.14em] text-[#929AA6]">REALTIME CHANNEL</p>
-                      <h3 className="text-base font-semibold text-[#F3F4F6]">
-                        실시간 재입고 · 추첨 소식 채널
-                      </h3>
-                      <p className="text-xs text-[#929AA6] leading-relaxed">
-                        공식 Instagram 계정을 팔로우하시면 긴급 재입고 및 추첨 응모 소식을 빠르게 확인하실 수 있습니다.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <Link
+                  to={dropsUrl}
+                  className={`min-h-[40px] px-4 py-2 text-xs font-semibold bg-[#111827] text-[#FFFFFF] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${btnRadius}`}
+                >
+                  <span>정가·추첨 허브</span>
+                  <ArrowRight size={14} />
+                </Link>
               </div>
             ) : (
-              <div className={`grid ${getAdaptiveColsClass(displayRetail.length, 4)} gap-4`}>
+              <div className={`grid ${getAdaptiveColsClass(displayRetail.length, 4)} gap-5`}>
                 {displayRetail.map((post) => (
                   <Link
                     key={post.id}
                     to={`/news/${post.slug}${previewSuffix}`}
-                    className="group border border-[#303741] rounded-lg overflow-hidden bg-[#171C23] flex flex-col nova-transition hover:border-[#C5CBD3]/60"
+                    className="group border border-[#E5E7EB] rounded-lg overflow-hidden bg-[#FFFFFF] flex flex-col hover:border-[#D1D5DB] transition-colors"
                   >
                     {post.coverImage && (
-                      <div className="aspect-[16/10] w-full overflow-hidden bg-[#11151A]">
+                      <div className="aspect-[16/10] w-full overflow-hidden bg-[#F5F6F8]">
                         <SafeImage
                           src={post.coverImage}
                           alt={post.title}
@@ -534,17 +745,15 @@ export const HomePage: React.FC = () => {
                       </div>
                     )}
                     <div className="p-5 flex-1 flex flex-col justify-between gap-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs text-[#929AA6]">
-                          <span className="text-[#C5CBD3] font-medium">{post.category}</span>
-                        </div>
-                        <h3 className="text-base font-semibold text-[#F3F4F6] leading-snug line-clamp-2">
+                      <div className="space-y-1.5">
+                        <span className="text-xs text-[#465C77] font-medium">{post.category}</span>
+                        <h3 className="text-base font-semibold text-[#111827] leading-snug line-clamp-2">
                           {post.title}
                         </h3>
                       </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-[#303741]/60 text-xs text-[#929AA6]">
+                      <div className="flex items-center justify-between pt-2 border-t border-[#E5E7EB] text-xs text-[#667085]">
                         <span className="font-mono-tabular">{formatKST(post.createdAt, false)}</span>
-                        <span className="text-[#C5CBD3] font-medium">자세히 →</span>
+                        <span className="text-[#111827] font-medium">자세히 →</span>
                       </div>
                     </div>
                   </Link>
@@ -555,213 +764,98 @@ export const HomePage: React.FC = () => {
         );
       }
 
-      case 'news': {
-        const displayNews = newsBriefingPosts.slice(0, limit || 4);
-        return (
-          <section
-            key="news"
-            id="tcg-news"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
-          >
-            <div className="flex items-end justify-between gap-4 mb-6">
-              <div>
-                <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
-                  GLOBAL TCG BRIEFING
-                </p>
-                <h2 className="text-xl sm:text-2xl font-semibold">전 세계 TCG 최신 뉴스</h2>
-              </div>
-              <Link
-                to={`/news${previewSuffix}`}
-                className="text-sm font-medium text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
-              >
-                <span>전체 뉴스 보기</span>
-                <ArrowRight size={15} />
-              </Link>
-            </div>
-
-            {displayNews.length === 0 ? (
-              <div className="border border-[#303741] rounded-lg p-8 bg-[#11151A] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-xs text-[#929AA6]">
-                    <Newspaper size={14} aria-hidden="true" />
-                    <span>TCG 뉴스 아카이브</span>
-                  </div>
-                  <p className="text-sm font-medium text-[#F3F4F6]">
-                    국내외 포켓몬카드 신규 소식과 에디토리얼 기사가 곧 업데이트됩니다.
-                  </p>
-                </div>
-                <Link
-                  to={`/news${previewSuffix}`}
-                  className="text-xs font-medium text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
-                >
-                  <span>아카이브로 이동</span>
-                  <ArrowRight size={14} />
-                </Link>
-              </div>
-            ) : displayNews.length === 1 ? (
-              <Link
-                to={`/news/${displayNews[0].slug}${previewSuffix}`}
-                className="group grid grid-cols-1 lg:grid-cols-12 border border-[#303741] rounded-lg overflow-hidden bg-[#171C23] hover:border-[#C5CBD3]/60 nova-transition"
-              >
-                {displayNews[0].coverImage && (
-                  <div className="lg:col-span-5 aspect-[16/10] lg:aspect-auto lg:h-full bg-[#11151A] overflow-hidden">
-                    <SafeImage
-                      src={displayNews[0].coverImage}
-                      alt={displayNews[0].title}
-                      fallbackTitle={displayNews[0].title}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                  </div>
-                )}
-                <div
-                  className={`${
-                    displayNews[0].coverImage ? 'lg:col-span-7' : 'lg:col-span-12'
-                  } p-6 sm:p-8 flex flex-col justify-between gap-4`}
-                >
-                  <div className="space-y-2.5">
-                    <div className="flex items-center gap-2 text-xs text-[#929AA6]">
-                      <span>{displayNews[0].category}</span>
-                      {displayNews[0].isPinned && (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span className="text-[#C5CBD3]">대표 기사</span>
-                        </>
-                      )}
-                      <span aria-hidden="true">·</span>
-                      <span className="font-mono-tabular">{formatKST(displayNews[0].createdAt, false)}</span>
-                      {displayNews[0].isSample && (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span className="font-mono-tabular text-[#C5CBD3]">SAMPLE</span>
-                        </>
-                      )}
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-[#F3F4F6] leading-snug">
-                      {displayNews[0].title}
-                    </h3>
-                    {displayNews[0].summary && (
-                      <p className="text-sm text-[#929AA6] leading-relaxed line-clamp-3">
-                        {displayNews[0].summary}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-[#303741]/60 text-xs font-medium text-[#C5CBD3]">
-                    <span>기사 전문 읽기</span>
-                    <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </div>
-              </Link>
-            ) : (
-              <div className={`grid ${getAdaptiveColsClass(displayNews.length, 4)} gap-4`}>
-                {displayNews.map((post) => (
-                  <Link
-                    key={post.id}
-                    to={`/news/${post.slug}${previewSuffix}`}
-                    className="group border border-[#303741] rounded-lg overflow-hidden bg-[#171C23] flex flex-col nova-transition hover:border-[#C5CBD3]/60"
-                  >
-                    {post.coverImage && (
-                      <div className="aspect-[16/10] w-full overflow-hidden bg-[#11151A]">
-                        <SafeImage
-                          src={post.coverImage}
-                          alt={post.title}
-                          fallbackTitle={post.title}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                        />
-                      </div>
-                    )}
-                    <div className="p-5 flex-1 flex flex-col justify-between gap-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-1.5 text-xs text-[#929AA6]">
-                          <span>{post.category}</span>
-                          {post.isPinned && (
-                            <>
-                              <span aria-hidden="true">·</span>
-                              <span className="text-[#C5CBD3]">대표</span>
-                            </>
-                          )}
-                          {post.isSample && (
-                            <>
-                              <span aria-hidden="true">·</span>
-                              <span className="font-mono-tabular text-[#C5CBD3]">SAMPLE</span>
-                            </>
-                          )}
-                        </div>
-                        <h3 className="text-base font-semibold text-[#F3F4F6] leading-snug line-clamp-2">
-                          {post.title}
-                        </h3>
-                        {post.summary && (
-                          <p className="text-xs text-[#929AA6] line-clamp-2 leading-relaxed">
-                            {post.summary}
-                          </p>
-                        )}
-                      </div>
-                      <p className="text-xs font-mono-tabular text-[#929AA6] pt-2 border-t border-[#303741]/60">
-                        {formatKST(post.createdAt, false)}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-            {newsInlineSponsors.length > 0 && (
-              <div className="mt-6 space-y-3">
-                {newsInlineSponsors.map((sp) => (
-                  <SponsorBanner
-                    key={sp.id}
-                    sponsor={sp}
-                    placement="news_inline"
-                    path="/"
-                    variant="inline_ad"
-                    buttonRadiusClass={btnRadius}
-                    previewSuffix={previewSuffix}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-        );
-      }
-
-      case 'sponsors': {
-        const displayPartners =
-          partnerGridSponsors.length > 0
-            ? partnerGridSponsors.slice(0, limit || 8)
-            : topSpotlightSponsor
-              ? [topSpotlightSponsor]
-              : [];
-        if (displayPartners.length === 0) return null;
+      case 'oripa_live': {
+        if (oripaItems.length === 0) return null;
+        const featured = oripaItems[0];
+        const total = Math.max(1, featured.totalSlots || 50);
+        let soldOrDisabled = 0;
+        for (let i = 1; i <= total; i++) {
+          const st = featured.slotStatuses?.[String(i)];
+          if (st === 'sold' || st === 'disabled' || st === 'reserved') soldOrDisabled += 1;
+        }
+        const availableCount = Math.max(0, total - soldOrDisabled);
+        const pct = Math.round((availableCount / total) * 100);
+        const hasLiveUrl = isValidExternalUrl(featured.youtubeLiveUrl || '');
+        const hasChannelUrl = isValidExternalUrl(featured.youtubeChannelUrl || '');
 
         return (
           <section
-            key="sponsors"
-            id="sponsors"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            key="oripa_live"
+            id="oripa-live"
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
-            <div className="flex items-end justify-between gap-4 mb-6">
-              <div>
-                <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
-                  OFFICIAL PARTNERS
-                </p>
-                <h2 className="text-xl sm:text-2xl font-semibold">공식 파트너 브랜드</h2>
-              </div>
-              <Link
-                to={`/sponsors${previewSuffix}`}
-                className="text-sm font-medium text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
-              >
-                <span>협찬 · 광고 안내</span>
-                <ArrowRight size={15} />
-              </Link>
-            </div>
-
-            <div className={`grid ${getAdaptiveColsClass(displayPartners.length, 4)} gap-4`}>
-              {displayPartners.map((sp) => (
-                <PartnerLogoTile
-                  key={sp.id}
-                  sponsor={sp}
-                  showSummary={sp.id !== topSpotlightSponsor?.id}
-                  onClickTrack={() => trackSponsorClick(sp, 'home_partners')}
+            <div className="border border-[#E5E7EB] rounded-xl overflow-hidden bg-[#F5F6F8] grid grid-cols-1 lg:grid-cols-12 items-stretch">
+              <div className="lg:col-span-5 aspect-[4/3] lg:aspect-auto bg-[#FFFFFF] border-b lg:border-b-0 lg:border-r border-[#E5E7EB] overflow-hidden">
+                <SafeImage
+                  src={featured.imageUrl}
+                  alt={featured.title}
+                  fallbackTitle="NOVA ORIPA"
+                  className="w-full h-full object-cover"
                 />
-              ))}
+              </div>
+
+              <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between gap-6">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-[#667085]">
+                    <span className="inline-flex items-center gap-1 font-mono-tabular font-semibold text-[#465C77] uppercase tracking-wider">
+                      <Sparkles size={13} />
+                      ORIPA · LIVE OPENING
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span className="font-medium text-[#111827]">
+                      {featured.purchasingDisabled ? '출시 준비 중 (사전 체험)' : '진행 중'}
+                    </span>
+                  </div>
+
+                  <h2 className="text-xl sm:text-2xl font-semibold text-[#111827] leading-snug text-balance">
+                    {featured.title}
+                  </h2>
+
+                  {featured.subtitle && (
+                    <p className="text-sm text-[#667085] leading-relaxed">{featured.subtitle}</p>
+                  )}
+
+                  <div className="pt-2 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-mono-tabular">
+                      <span className="text-[#667085]">
+                        1구 <strong className="text-[#111827]">{formatKRW(featured.pricePerSlot)}</strong> · 총 {total}구
+                      </span>
+                      <span className="text-[#111827] font-semibold">
+                        잔여 {availableCount} / {total} ({pct}%)
+                      </span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-[#E5E7EB] overflow-hidden">
+                      <div
+                        className="h-full bg-[#465C77] transition-all duration-300"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#E5E7EB]">
+                  <Link
+                    to={`/oripa/${featured.id}${previewSuffix}`}
+                    className={`min-h-[42px] px-5 py-2 text-xs font-semibold bg-[#111827] text-[#FFFFFF] hover:bg-[#465C77] inline-flex items-center gap-2 transition-colors ${btnRadius}`}
+                  >
+                    <span>번호판 미리보기 · 상세 안내</span>
+                    <ArrowRight size={14} />
+                  </Link>
+
+                  {(hasLiveUrl || hasChannelUrl) && (
+                    <a
+                      href={(hasLiveUrl ? featured.youtubeLiveUrl : featured.youtubeChannelUrl) || ''}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`min-h-[42px] px-4 py-2 text-xs font-medium border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:border-[#111827] inline-flex items-center gap-1.5 transition-colors ${btnRadius}`}
+                    >
+                      <Youtube size={14} />
+                      <span>YouTube 채널</span>
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
         );
@@ -773,44 +867,50 @@ export const HomePage: React.FC = () => {
         return (
           <section
             key="actions"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
-            <div className="mb-5">
-              <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
-                STORE &amp; BUYBACK
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-7">
+              <div>
+                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
+                  STORE &amp; BUYBACK
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111827]">
+                  카드 구매 · 비공개 매입
+                </h2>
+              </div>
+              <p className="text-xs sm:text-sm text-[#667085] max-w-md">
+                외부 뉴스·협찬과 분리된 NOVA 자체 검수 컬렉션 판매 및 1:1 매입 서비스입니다.
               </p>
-              <h2 className="text-xl sm:text-2xl font-semibold">카드 구매 · 매입 서비스</h2>
             </div>
-            <div className={`grid ${getAdaptiveColsClass(displayActions.length, 2)} gap-4`}>
+            <div className={`grid ${getAdaptiveColsClass(displayActions.length, 2)} gap-5`}>
               {displayActions.map((action, idx) => {
                 const isInternal = action.url.startsWith('/');
                 const targetUrl = isInternal ? `${action.url}${previewSuffix}` : action.url;
+                const isPrimary = idx === 0;
                 const content = (
                   <div
-                    className="group h-full border p-5 sm:p-6 rounded-lg flex flex-col justify-between gap-4 nova-transition hover:-translate-y-0.5 hover:border-[#C5CBD3]/60"
-                    style={{
-                      backgroundColor: idx === 0 ? 'var(--nova-bg-card)' : 'var(--nova-bg-secondary)',
-                      borderColor: 'var(--nova-border)',
-                    }}
+                    className={`group h-full border rounded-lg p-6 sm:p-8 flex flex-col justify-between gap-6 nova-card-hover ${
+                      isPrimary
+                        ? 'bg-[#FFFFFF] border-[#E5E7EB] hover:border-[#111827]'
+                        : 'bg-[#F5F6F8] border-[#E5E7EB] hover:border-[#465C77]'
+                    }`}
                   >
-                    <div className="space-y-1.5">
-                      <p className="text-xs tracking-[0.16em]" style={{ color: 'var(--nova-text-secondary)' }}>
-                        0{idx + 1}. {idx === 0 ? 'CATALOG' : 'BUYBACK'}
+                    <div className="space-y-2">
+                      <p className="font-mono-tabular text-xs tracking-[0.16em] text-[#667085]">
+                        0{idx + 1} · {isPrimary ? 'STORE CATALOG' : 'PRIVATE BUYBACK'}
                       </p>
-                      <h3 className="text-lg sm:text-xl font-semibold tracking-tight" style={{ color: 'var(--nova-text-primary)' }}>
+                      <h3 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#111827]">
                         {action.title}
                       </h3>
-                      <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--nova-text-secondary)' }}>
-                        {action.subtitle}
-                      </p>
+                      <p className="text-sm leading-relaxed text-[#667085]">{action.subtitle}</p>
                     </div>
-                    <div className="flex items-center justify-between pt-2.5 border-t border-[#303741]/60">
-                      <span className="text-xs sm:text-sm font-medium" style={{ color: 'var(--nova-silver)' }}>
+                    <div className="flex items-center justify-between pt-4 border-t border-[#E5E7EB]">
+                      <span className="text-sm font-semibold text-[#111827] group-hover:text-[#465C77] transition-colors">
                         {action.ctaLabel}
                       </span>
                       <ArrowRight
                         size={16}
-                        className="text-[#C5CBD3] transition-transform group-hover:translate-x-1"
+                        className="text-[#667085] group-hover:text-[#465C77] transition-transform group-hover:translate-x-1"
                       />
                     </div>
                   </div>
@@ -853,120 +953,44 @@ export const HomePage: React.FC = () => {
         );
       }
 
-      case 'featured_products': {
-        const displayProducts = products.slice(0, limit || 4);
+      case 'sponsors': {
+        const displayPartners = partnerGridSponsors.slice(0, limit || 8);
+        if (displayPartners.length === 0) return null;
+
         return (
           <section
-            key="featured_products"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            key="sponsors"
+            id="sponsors"
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
-            <div className="flex items-end justify-between gap-4 mb-6">
+            <div className="flex items-end justify-between gap-4 mb-7">
               <div>
-                <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
-                  CURATED COLLECTION
+                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
+                  OFFICIAL PARTNERS
                 </p>
-                <h2 className="text-xl sm:text-2xl font-semibold">큐레이션 컬렉션</h2>
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111827]">
+                  공식 파트너 협업 · 캠페인
+                </h2>
               </div>
               <Link
-                to={`/shop${previewSuffix}`}
-                className="text-sm font-medium text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                to={`/sponsors${previewSuffix}`}
+                className="text-xs sm:text-sm font-medium text-[#667085] hover:text-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
               >
-                <span>스토어 전체 보기</span>
+                <span>파트너십 · 광고 안내</span>
                 <ArrowRight size={15} />
               </Link>
             </div>
 
-            {displayProducts.length === 0 ? (
-              <div className="border border-[#303741] rounded-lg p-8 text-center space-y-2 bg-[#11151A]">
-                <p className="text-sm font-medium text-[#F3F4F6]">새로운 컬렉션 입고 준비 중입니다</p>
-                <p className="text-xs text-[#929AA6]">
-                  찾으시는 특정 등급 카드나 박스가 있다면 Instagram DM으로 문의해 주세요.
-                </p>
-              </div>
-            ) : displayProducts.length === 1 ? (
-              <Link
-                to={`/shop/${displayProducts[0].id}${previewSuffix}`}
-                className="group grid grid-cols-1 lg:grid-cols-12 border border-[#303741] rounded-lg overflow-hidden bg-[#171C23] nova-transition hover:border-[#C5CBD3]/60"
-              >
-                <div className="lg:col-span-5 aspect-[4/3] lg:aspect-auto lg:h-full overflow-hidden bg-[#11151A]">
-                  <SafeImage
-                    src={displayProducts[0].images?.[0]}
-                    alt={displayProducts[0].title}
-                    fallbackTitle={displayProducts[0].title}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                  />
-                </div>
-                <div className="lg:col-span-7 p-6 sm:p-8 flex flex-col justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-1.5 text-xs text-[#929AA6]">
-                      <span>{displayProducts[0].category}</span>
-                      <span aria-hidden="true">·</span>
-                      <span>{displayProducts[0].status}</span>
-                      {displayProducts[0].isSample && (
-                        <>
-                          <span aria-hidden="true">·</span>
-                          <span className="font-mono-tabular text-[#C5CBD3]">SAMPLE</span>
-                        </>
-                      )}
-                    </div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-[#F3F4F6]">
-                      {displayProducts[0].title}
-                    </h3>
-                    {displayProducts[0].description && (
-                      <p className="text-sm text-[#929AA6] line-clamp-2 leading-relaxed">
-                        {displayProducts[0].description}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-[#303741]/60">
-                    <p className="font-mono-tabular text-base font-semibold text-[#C5CBD3]">
-                      {formatKRW(displayProducts[0].price)}
-                    </p>
-                    <span className="text-xs font-medium text-[#C5CBD3]">상세 보기 →</span>
-                  </div>
-                </div>
-              </Link>
-            ) : (
-              <div className={`grid ${getAdaptiveColsClass(displayProducts.length, 4)} gap-4`}>
-                {displayProducts.map((product) => (
-                  <Link
-                    key={product.id}
-                    to={`/shop/${product.id}${previewSuffix}`}
-                    className="group border border-[#303741] rounded-lg overflow-hidden bg-[#171C23] flex flex-col nova-transition hover:-translate-y-0.5 hover:border-[#C5CBD3]/60"
-                  >
-                    <div className="aspect-[4/3] w-full overflow-hidden bg-[#11151A]">
-                      <SafeImage
-                        src={product.images?.[0]}
-                        alt={product.title}
-                        fallbackTitle={product.title}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                      />
-                    </div>
-                    <div className="p-4 flex-1 flex flex-col justify-between gap-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1.5 text-xs text-[#929AA6]">
-                          <span>{product.category}</span>
-                          <span aria-hidden="true">·</span>
-                          <span>{product.status}</span>
-                          {product.isSample && (
-                            <>
-                              <span aria-hidden="true">·</span>
-                              <span className="font-mono-tabular text-[#C5CBD3]">SAMPLE</span>
-                            </>
-                          )}
-                        </div>
-                        <h3 className="text-sm font-semibold text-[#F3F4F6] line-clamp-2 leading-snug">
-                          {product.title}
-                        </h3>
-                      </div>
-                      <p className="font-mono-tabular text-sm font-semibold text-[#C5CBD3]">
-                        {formatKRW(product.price)}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
+            <div className={`grid ${getAdaptiveColsClass(displayPartners.length, 4)} gap-5`}>
+              {displayPartners.map((sp) => (
+                <PartnerLogoTile
+                  key={sp.id}
+                  sponsor={sp}
+                  showSummary={true}
+                  onClickTrack={() => trackSponsorClick(sp, 'home_partners')}
+                />
+              ))}
+            </div>
           </section>
         );
       }
@@ -977,34 +1001,34 @@ export const HomePage: React.FC = () => {
         return (
           <section
             key="events"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
             <div className="flex items-end justify-between gap-4 mb-6">
               <div>
-                <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
+                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#667085] font-semibold mb-1.5">
                   LIVE &amp; SCHEDULE (KST)
                 </p>
-                <h2 className="text-xl sm:text-2xl font-semibold">라이브 &amp; 이벤트</h2>
+                <h2 className="text-xl sm:text-2xl font-semibold text-[#111827]">라이브 &amp; 이벤트</h2>
               </div>
               <Link
                 to={`/events${previewSuffix}`}
-                className="text-sm font-medium text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+                className="text-xs sm:text-sm font-medium text-[#667085] hover:text-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
               >
                 <span>전체 일정</span>
                 <ArrowRight size={15} />
               </Link>
             </div>
-            <div className={`grid ${getAdaptiveColsClass(displayEvents.length, 3)} gap-4`}>
+            <div className={`grid ${getAdaptiveColsClass(displayEvents.length, 3)} gap-5`}>
               {displayEvents.map((ev) => {
                 const status = getEventStatus(ev.startAt, ev.endAt);
                 return (
                   <div
                     key={ev.id}
-                    className="border border-[#303741] rounded-lg p-5 sm:p-6 bg-[#171C23] flex flex-col justify-between gap-4"
+                    className="border border-[#E5E7EB] rounded-lg p-5 sm:p-6 bg-[#FFFFFF] flex flex-col justify-between gap-4"
                   >
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-xs text-[#929AA6]">
-                        <span className={status === '진행 중' ? 'text-[#C5CBD3] font-semibold' : ''}>
+                      <div className="flex items-center gap-2 text-xs text-[#667085]">
+                        <span className={status === '진행 중' ? 'text-[#0F6B4B] font-semibold' : 'text-[#465C77] font-medium'}>
                           {status}
                         </span>
                         {ev.locationOrPlatform && (
@@ -1013,20 +1037,14 @@ export const HomePage: React.FC = () => {
                             <span>{ev.locationOrPlatform}</span>
                           </>
                         )}
-                        {ev.isSample && (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span className="font-mono-tabular text-[#C5CBD3]">SAMPLE</span>
-                          </>
-                        )}
                       </div>
-                      <h3 className="text-base font-semibold text-[#F3F4F6]">{ev.title}</h3>
+                      <h3 className="text-base font-semibold text-[#111827]">{ev.title}</h3>
                       {ev.description && (
-                        <p className="text-sm text-[#929AA6] leading-relaxed">{ev.description}</p>
+                        <p className="text-sm text-[#667085] leading-relaxed">{ev.description}</p>
                       )}
                     </div>
-                    <div className="pt-3 border-t border-[#303741]/60 flex items-center justify-between gap-3 text-xs">
-                      <span className="font-mono-tabular text-[#C5CBD3]">
+                    <div className="pt-3 border-t border-[#E5E7EB] flex items-center justify-between gap-3 text-xs">
+                      <span className="font-mono-tabular text-[#667085]">
                         {formatKST(ev.startAt)} KST
                       </span>
                       {ev.externalUrl && isValidExternalUrl(ev.externalUrl) && (
@@ -1034,7 +1052,7 @@ export const HomePage: React.FC = () => {
                           href={ev.externalUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[#C5CBD3] hover:text-[#F3F4F6] inline-flex items-center gap-1 whitespace-nowrap"
+                          className="text-[#111827] hover:text-[#465C77] font-medium inline-flex items-center gap-1 whitespace-nowrap"
                         >
                           <span>자세히</span>
                           <ExternalLink size={13} />
@@ -1055,13 +1073,13 @@ export const HomePage: React.FC = () => {
         return (
           <section
             key="community"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
             <div className="mb-6">
-              <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
+              <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#667085] font-semibold mb-1.5">
                 NOVA COMMUNITY
               </p>
-              <h2 className="text-xl sm:text-2xl font-semibold">NOVA 커뮤니티</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#111827]">NOVA 커뮤니티</h2>
             </div>
 
             {displayCommunity.length === 1 ? (
@@ -1076,28 +1094,28 @@ export const HomePage: React.FC = () => {
                     targetLabel: displayCommunity[0].name,
                   })
                 }
-                className="group border border-[#303741] rounded-lg p-6 sm:p-7 bg-[#171C23] flex flex-col sm:flex-row sm:items-center justify-between gap-5 nova-transition hover:border-[#C5CBD3]/60"
+                className="group border border-[#E5E7EB] rounded-lg p-6 sm:p-7 bg-[#FFFFFF] flex flex-col sm:flex-row sm:items-center justify-between gap-5 nova-card-hover hover:border-[#D1D5DB]"
               >
                 <div className="space-y-1.5 min-w-0">
-                  <span className="text-xs uppercase tracking-wider text-[#929AA6] block">
+                  <span className="font-mono-tabular text-[11px] uppercase tracking-wider text-[#465C77] font-semibold block">
                     {displayCommunity[0].platform}
                   </span>
-                  <h3 className="text-base sm:text-lg font-semibold text-[#F3F4F6]">
+                  <h3 className="text-base sm:text-lg font-semibold text-[#111827]">
                     {displayCommunity[0].name}
                   </h3>
-                  <p className="text-sm text-[#929AA6] leading-relaxed">
+                  <p className="text-sm text-[#667085] leading-relaxed">
                     {displayCommunity[0].description}
                   </p>
                 </div>
                 <span
-                  className={`min-h-[42px] px-4 py-2 text-xs font-semibold border border-[#303741] bg-[#11151A] text-[#F3F4F6] group-hover:border-[#C5CBD3] inline-flex items-center gap-2 whitespace-nowrap shrink-0 ${btnRadius}`}
+                  className={`min-h-[42px] px-4 py-2 text-xs font-semibold border border-[#E5E7EB] bg-[#F5F6F8] text-[#111827] group-hover:bg-[#111827] group-hover:text-[#FFFFFF] transition-colors inline-flex items-center gap-2 whitespace-nowrap shrink-0 ${btnRadius}`}
                 >
                   <span>채널 바로가기</span>
                   <ExternalLink size={14} />
                 </span>
               </a>
             ) : (
-              <div className={`grid ${getAdaptiveColsClass(displayCommunity.length, 3)} gap-4`}>
+              <div className={`grid ${getAdaptiveColsClass(displayCommunity.length, 3)} gap-5`}>
                 {displayCommunity.map((ch) => (
                   <a
                     key={ch.id}
@@ -1111,17 +1129,17 @@ export const HomePage: React.FC = () => {
                         targetLabel: ch.name,
                       })
                     }
-                    className="group border border-[#303741] rounded-lg p-5 sm:p-6 bg-[#171C23] flex flex-col justify-between gap-4 nova-transition hover:border-[#C5CBD3]/60"
+                    className="group border border-[#E5E7EB] rounded-lg p-5 sm:p-6 bg-[#FFFFFF] flex flex-col justify-between gap-4 nova-card-hover hover:border-[#D1D5DB]"
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs uppercase tracking-wider text-[#929AA6]">
+                        <span className="font-mono-tabular text-[11px] uppercase tracking-wider text-[#465C77] font-semibold">
                           {ch.platform}
                         </span>
-                        <ExternalLink size={14} className="text-[#929AA6] group-hover:text-[#F3F4F6]" />
+                        <ExternalLink size={14} className="text-[#667085] group-hover:text-[#111827]" />
                       </div>
-                      <h3 className="text-base font-semibold text-[#F3F4F6]">{ch.name}</h3>
-                      <p className="text-sm text-[#929AA6] leading-relaxed">{ch.description}</p>
+                      <h3 className="text-base font-semibold text-[#111827]">{ch.name}</h3>
+                      <p className="text-sm text-[#667085] leading-relaxed">{ch.description}</p>
                     </div>
                   </a>
                 ))}
@@ -1137,29 +1155,31 @@ export const HomePage: React.FC = () => {
         return (
           <section
             key="reviews"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
             <div className="mb-6">
-              <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
+              <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#667085] font-semibold mb-1.5">
                 COLLECTOR TRUST
               </p>
-              <h2 className="text-xl sm:text-2xl font-semibold">컬렉터 후기</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#111827]">컬렉터 후기</h2>
             </div>
-            <div className={`grid ${getAdaptiveColsClass(displayReviews.length, 3)} gap-4`}>
+            <div className={`grid ${getAdaptiveColsClass(displayReviews.length, 3)} gap-5`}>
               {displayReviews.map((rev) => (
                 <div
                   key={rev.id}
-                  className="border border-[#303741] rounded-lg p-5 sm:p-6 bg-[#171C23] flex flex-col justify-between gap-4"
+                  className="border border-[#E5E7EB] rounded-lg p-6 bg-[#FFFFFF] flex flex-col justify-between gap-4"
                 >
-                  <p className="text-sm text-[#F3F4F6] leading-relaxed">“{rev.content}”</p>
-                  <div className="flex items-center justify-between text-xs text-[#929AA6] pt-3 border-t border-[#303741]/60">
+                  <div className="space-y-2">
+                    <span className="font-editorial text-3xl leading-none text-[#465C77]/50 block" aria-hidden="true">
+                      “
+                    </span>
+                    <p className="text-sm text-[#111827] leading-relaxed">{rev.content}</p>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-[#667085] pt-3 border-t border-[#E5E7EB]">
                     <span>
                       {rev.authorName}
                       {rev.context ? ` · ${rev.context}` : ''}
                     </span>
-                    {rev.isSample && (
-                      <span className="font-mono-tabular text-[#C5CBD3]">SAMPLE</span>
-                    )}
                   </div>
                 </div>
               ))}
@@ -1173,15 +1193,15 @@ export const HomePage: React.FC = () => {
         return (
           <section
             key="faq"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
             <div className="mb-6">
-              <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
+              <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#667085] font-semibold mb-1.5">
                 FAQ
               </p>
-              <h2 className="text-xl sm:text-2xl font-semibold">자주 묻는 질문</h2>
+              <h2 className="text-xl sm:text-2xl font-semibold text-[#111827]">자주 묻는 질문</h2>
             </div>
-            <div className="divide-y divide-[#303741] border-y border-[#303741]">
+            <div className="divide-y divide-[#E5E7EB] border-y border-[#E5E7EB]">
               {faqs.slice(0, limit || 10).map((faq) => {
                 const isOpen = openFaqId === faq.id;
                 return (
@@ -1190,18 +1210,18 @@ export const HomePage: React.FC = () => {
                       type="button"
                       onClick={() => setOpenFaqId(isOpen ? null : faq.id)}
                       aria-expanded={isOpen}
-                      className="w-full min-h-[50px] py-3.5 flex items-center justify-between gap-4 text-left"
+                      className="w-full min-h-[52px] py-3.5 flex items-center justify-between gap-4 text-left"
                     >
-                      <span className="text-sm sm:text-base font-medium text-[#F3F4F6]">
+                      <span className="text-sm sm:text-base font-medium text-[#111827]">
                         {faq.question}
                       </span>
                       <ChevronDown
                         size={18}
-                        className={`text-[#929AA6] shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                        className={`text-[#667085] shrink-0 transition-transform ${isOpen ? 'rotate-180 text-[#465C77]' : ''}`}
                       />
                     </button>
                     {isOpen && (
-                      <div className="pb-4 text-sm text-[#929AA6] leading-relaxed whitespace-pre-line">
+                      <div className="pb-4 text-sm text-[#667085] leading-relaxed whitespace-pre-line">
                         {faq.answer}
                       </div>
                     )}
@@ -1219,17 +1239,17 @@ export const HomePage: React.FC = () => {
           <section
             key="notices"
             id="notices"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#303741]/60`}
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
             <div className="flex items-end justify-between gap-4 mb-5">
               <div>
-                <p className="text-xs tracking-[0.18em] mb-1" style={{ color: 'var(--nova-text-secondary)' }}>
+                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#667085] font-semibold mb-1.5">
                   ANNOUNCEMENTS
                 </p>
-                <h2 className="text-xl sm:text-2xl font-semibold">공지사항</h2>
+                <h2 className="text-xl sm:text-2xl font-semibold text-[#111827]">공지사항</h2>
               </div>
             </div>
-            <div className="divide-y divide-[#303741] border-y border-[#303741]">
+            <div className="divide-y divide-[#E5E7EB] border-y border-[#E5E7EB]">
               {notices.slice(0, limit || 3).map((notice) => {
                 const isOpen = expandedNoticeId === notice.id;
                 return (
@@ -1241,29 +1261,24 @@ export const HomePage: React.FC = () => {
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {notice.isPinned && (
-                          <Pin size={14} className="text-[#8068BA] shrink-0" aria-label="고정 공지" />
+                          <Pin size={14} className="text-[#465C77] shrink-0" aria-label="고정 공지" />
                         )}
-                        <span className="text-sm sm:text-base font-medium truncate text-[#F3F4F6]">
+                        <span className="text-sm sm:text-base font-medium truncate text-[#111827]">
                           {notice.title}
                         </span>
-                        {notice.isSample && (
-                          <span className="text-[11px] font-mono-tabular tracking-wider text-[#929AA6] shrink-0">
-                            SAMPLE
-                          </span>
-                        )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className="hidden sm:inline text-xs font-mono-tabular text-[#929AA6]">
+                        <span className="hidden sm:inline text-xs font-mono-tabular text-[#667085]">
                           {formatKST(notice.createdAt, false)}
                         </span>
                         <ChevronDown
                           size={16}
-                          className={`text-[#929AA6] transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                          className={`text-[#667085] transition-transform ${isOpen ? 'rotate-180 text-[#465C77]' : ''}`}
                         />
                       </div>
                     </button>
                     {isOpen && (
-                      <div className="pt-2.5 pb-1 text-sm text-[#929AA6] leading-relaxed whitespace-pre-line">
+                      <div className="pt-2.5 pb-1 text-sm text-[#667085] leading-relaxed whitespace-pre-line">
                         {notice.content}
                       </div>
                     )}
@@ -1283,188 +1298,140 @@ export const HomePage: React.FC = () => {
     }
   };
 
+  const activeBanner = homeBannerSponsors[bannerIdx] || homeBannerSponsors[0];
+
   return (
     <>
       <SeoManager />
 
-      {/* 1. NOVA Main Visual (Hero) */}
-      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-6 md:pt-10 md:pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
-          {/* Left Identity Column */}
-          <div className="lg:col-span-6 flex flex-col justify-between gap-6 py-1">
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div
-                  className="relative w-16 h-16 sm:w-[72px] sm:h-[72px] rounded-full overflow-hidden ring-1 ring-[#8068BA]/35 shrink-0"
-                  style={{ backgroundColor: 'var(--nova-bg-main)' }}
-                >
-                  <SafeImage
-                    key={config.brand.logoUrl}
-                    src={config.brand.logoUrl}
-                    alt={`${config.brand.name} 로고`}
-                    fallbackTitle="NOVA"
-                    className="w-full h-full object-cover scale-[1.08]"
-                  />
-                </div>
-                <div className="min-w-0">
-                  <h1 className="font-brand text-3xl sm:text-4xl font-bold tracking-[0.22em] text-[#F3F4F6]">
-                    {config.brand.name}
-                  </h1>
-                  <p className="text-[11px] sm:text-xs tracking-[0.18em] text-[#929AA6] mt-1 truncate">
-                    {config.brand.tagline}
-                  </p>
-                </div>
-              </div>
+      {/* 1. Responsive Full-Width Store Hero Slider (Admin Managed, Zero Buyback Chart) */}
+      <HeroSlider />
 
-              <div className="space-y-2.5">
-                <p
-                  className="text-2xl sm:text-3xl lg:text-[34px] font-semibold tracking-tight leading-tight text-balance"
-                  style={{ color: 'var(--nova-text-primary)' }}
-                >
-                  {config.brand.headline}
-                </p>
-                <p
-                  className="text-sm sm:text-[15px] leading-relaxed max-w-xl"
-                  style={{ color: 'var(--nova-text-secondary)' }}
-                >
-                  {config.brand.description}
-                </p>
-              </div>
+      {/* 2. Pinned Notice Slim Bar & Official Channels */}
+      <div className="border-b border-[#E5E7EB] bg-[#F5F6F8]">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs text-[#667085]">
+          {pinnedNotice ? (
+            <a
+              href="#notices"
+              className="flex items-center gap-2 min-w-0 hover:text-[#111827] transition-colors"
+            >
+              <Pin size={13} className="text-[#465C77] shrink-0" aria-hidden="true" />
+              <span className="font-medium text-[#111827] truncate">{pinnedNotice.title}</span>
+              <span className="font-mono-tabular text-[11px] shrink-0">공지 →</span>
+            </a>
+          ) : (
+            <span className="font-mono-tabular text-[11px] tracking-wider uppercase">
+              {config.brand.tagline}
+            </span>
+          )}
 
-              {/* Primary Media-First Hero CTAs */}
-              <div className="flex flex-wrap items-center gap-2.5 pt-1">
-                <Link
-                  to={`/drops${previewSuffix}`}
-                  className={`min-h-[44px] px-5 py-2.5 text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap nova-transition ${btnRadius}`}
-                  style={{
-                    backgroundColor: 'var(--nova-silver)',
-                    color: 'var(--nova-bg-main)',
-                  }}
-                >
-                  <span>정가 구매·추첨 보기</span>
-                  <ArrowRight size={16} />
-                </Link>
-                <Link
-                  to={`/news${previewSuffix}`}
-                  className={`min-h-[44px] px-4 py-2.5 text-sm font-medium inline-flex items-center gap-2 border whitespace-nowrap nova-transition hover:border-[#C5CBD3] ${btnRadius}`}
-                  style={{
-                    backgroundColor: 'var(--nova-bg-secondary)',
-                    color: 'var(--nova-text-primary)',
-                    borderColor: 'var(--nova-border)',
-                  }}
-                >
-                  <span>TCG 최신 뉴스</span>
-                </Link>
-              </div>
-            </div>
-
-            {/* SNS Links (unregistered SNS automatically hidden) */}
-            <div className="flex flex-wrap items-center gap-2.5 pt-4 border-t border-[#303741]/70">
-              {isValidExternalUrl(config.brand.instagramUrl) && (
-                <a
-                  href={config.brand.instagramUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="NOVA Instagram"
-                  className="min-h-[38px] px-3 py-1.5 rounded border border-[#303741] bg-[#11151A] text-xs text-[#C5CBD3] hover:border-[#C5CBD3] inline-flex items-center gap-2 transition-colors"
-                >
-                  <Instagram size={14} />
-                  <span>Instagram</span>
-                </a>
-              )}
-              {isValidExternalUrl(config.brand.tiktokUrl) && (
-                <a
-                  href={config.brand.tiktokUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="NOVA TikTok"
-                  className="min-h-[38px] px-3 py-1.5 rounded border border-[#303741] bg-[#11151A] text-xs text-[#C5CBD3] hover:border-[#C5CBD3] inline-flex items-center gap-2 transition-colors"
-                >
-                  <MessageCircle size={14} />
-                  <span>TikTok</span>
-                </a>
-              )}
-              {isValidExternalUrl(config.brand.youtubeUrl) && (
-                <a
-                  href={config.brand.youtubeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="NOVA YouTube"
-                  className="min-h-[38px] px-3 py-1.5 rounded border border-[#303741] bg-[#11151A] text-xs text-[#C5CBD3] hover:border-[#C5CBD3] inline-flex items-center gap-2 transition-colors"
-                >
-                  <Youtube size={14} />
-                  <span>YouTube</span>
-                </a>
-              )}
-              {config.brand.email && (
-                <a
-                  href={`mailto:${config.brand.email}`}
-                  aria-label="NOVA Email"
-                  className="min-h-[38px] px-3 py-1.5 rounded border border-[#303741] bg-[#11151A] text-xs text-[#C5CBD3] hover:border-[#C5CBD3] inline-flex items-center gap-2 transition-colors"
-                >
-                  <Mail size={14} />
-                  <span>Email</span>
-                </a>
-              )}
-              {dmUrl && (
-                <a
-                  href={dmUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="min-h-[38px] px-2.5 py-1.5 text-xs text-[#929AA6] hover:text-[#F3F4F6] inline-flex items-center gap-1.5 transition-colors"
-                >
-                  <span>@novapokemonkr</span>
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Right Editorial Hero Visual */}
-          <div className="lg:col-span-6 flex flex-col gap-3">
-            <div className="flex-1 min-h-[260px] sm:min-h-[320px] max-h-[420px] rounded-lg overflow-hidden border border-[#303741] bg-[#080A0D] flex items-center justify-center">
-              <SafeImage
-                src={config.brand.heroImageUrl}
-                alt="NOVA Pokémon TCG Showcase"
-                fallbackTitle="NOVA COLLECTION"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            {pinnedNotice && (
+          <div className="flex flex-wrap items-center gap-4 shrink-0">
+            {isValidExternalUrl(config.brand.instagramUrl) && (
               <a
-                href="#notices"
-                className="px-3.5 py-2.5 rounded-lg border border-[#303741] bg-[#11151A] flex items-center justify-between gap-3 hover:border-[#C5CBD3]/60 transition-colors"
+                href={config.brand.instagramUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#111827] inline-flex items-center gap-1 transition-colors"
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Pin size={13} className="text-[#8068BA] shrink-0" aria-hidden="true" />
-                  <span className="text-xs font-medium text-[#F3F4F6] truncate">
-                    {pinnedNotice.title}
-                  </span>
-                </div>
-                <span className="text-[11px] font-mono-tabular text-[#929AA6] shrink-0">
-                  공지 →
-                </span>
+                <Instagram size={13} />
+                <span>Instagram</span>
+              </a>
+            )}
+            {isValidExternalUrl(config.brand.youtubeUrl) && (
+              <a
+                href={config.brand.youtubeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-[#111827] inline-flex items-center gap-1 transition-colors"
+              >
+                <Youtube size={13} />
+                <span>YouTube</span>
+              </a>
+            )}
+            {config.brand.email && (
+              <a
+                href={`mailto:${config.brand.email}`}
+                className="hover:text-[#111827] inline-flex items-center gap-1 transition-colors"
+              >
+                <Mail size={13} />
+                <span>문의</span>
+              </a>
+            )}
+            {dmUrl && (
+              <a
+                href={dmUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#465C77] hover:text-[#111827] font-medium inline-flex items-center gap-1"
+              >
+                <MessageCircle size={13} />
+                <span>@novapokemonkr</span>
               </a>
             )}
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Top Main Sponsor Banner (Near upper content without obstructing Retail Drop & News) */}
-      {topSpotlightSponsor && (
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-7 md:pb-8">
+      {/* 3. Top Featured Sponsor Banner / Multi-Banner Carousel (strictly hidden if 0) */}
+      {activeBanner && (
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-2 space-y-3">
           <SponsorBanner
-            sponsor={topSpotlightSponsor}
+            sponsor={activeBanner}
             placement="home_banner"
             path="/"
             variant="hero_banner"
             buttonRadiusClass={btnRadius}
             previewSuffix={previewSuffix}
           />
+          {homeBannerSponsors.length > 1 && (
+            <div className="flex items-center justify-between text-xs text-[#667085]">
+              <div className="flex items-center gap-1.5">
+                {homeBannerSponsors.map((sp, i) => (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    aria-label={`${i + 1}번 스폰서 배너 보기`}
+                    onClick={() => setBannerIdx(i)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === bannerIdx ? 'w-6 bg-[#465C77]' : 'w-3 bg-[#E5E7EB] hover:bg-[#D1D5DB]'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-label="이전 스폰서 배너"
+                  onClick={() =>
+                    setBannerIdx((prev) => (prev - 1 + homeBannerSponsors.length) % homeBannerSponsors.length)
+                  }
+                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8]"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="다음 스폰서 배너"
+                  onClick={() => setBannerIdx((prev) => (prev + 1) % homeBannerSponsors.length)}
+                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8]"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       )}
 
-      {/* Dynamic Configurable Sections */}
+      {/* 4. Dynamic Domain Sections */}
       {orderedSections.map((sec) => renderSection(sec.id, sec.limit))}
+
+      {/* Quick View Modal */}
+      <ProductQuickViewModal
+        product={quickViewProduct}
+        previewSuffix={previewSuffix}
+        onClose={() => setQuickViewProduct(null)}
+      />
     </>
   );
 };

@@ -29,7 +29,6 @@ export const WorkWithNovaSection: React.FC = () => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } else {
-      // Fallback for strict Instagram/iOS in-app browsers
       setShowManualCopy(true);
     }
   };
@@ -37,39 +36,28 @@ export const WorkWithNovaSection: React.FC = () => {
   return (
     <section
       id="work-with-nova"
-      className="border-t"
-      style={{
-        backgroundColor: 'var(--nova-bg-secondary)',
-        borderColor: 'var(--nova-border)',
-      }}
+      className="border-t border-[#E5E7EB] bg-[#F5F6F8]"
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14">
-        <div
-          className="border p-6 sm:p-8 md:p-10 rounded-lg"
-          style={{
-            backgroundColor: 'var(--nova-bg-card)',
-            borderColor: 'var(--nova-border)',
-          }}
-        >
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-7">
-            <div className="space-y-2.5 max-w-xl">
-              <p className="font-brand text-xs tracking-[0.22em]" style={{ color: 'var(--nova-silver)' }}>
-                SPONSORSHIP &amp; MEDIA PARTNERSHIP
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-16">
+        <div className="border border-[#E5E7EB] bg-[#FFFFFF] p-6 sm:p-8 md:p-10 rounded-lg">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+            <div className="space-y-3 max-w-xl">
+              <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold">
+                PARTNERSHIP &amp; MEDIA INQUIRY
               </p>
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight" style={{ color: 'var(--nova-text-primary)' }}>
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight text-[#111827] text-balance">
                 공식 협찬 · 배너 광고 · 콘텐츠 협업 문의
               </h2>
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--nova-text-secondary)' }}>
-                메인 스폰서 배너 입점, 포켓몬카드 발매·추첨 파트너십, 언박싱 콘텐츠 및 오프라인 대회·팝업 제휴 문의를 환영합니다.
+              <p className="text-sm leading-relaxed text-[#667085]">
+                메인 스폰서 배너 입점, 포켓몬카드 발매·추첨 파트너십, 언박싱 영상 협업 및 오프라인 행사 제휴 문의를 환영합니다.
                 담당 이메일 또는 공식 Instagram DM으로 제안서를 보내주세요.
               </p>
-              <p className="font-mono-tabular text-sm pt-1" style={{ color: 'var(--nova-silver)' }}>
+              <p className="font-mono-tabular text-sm pt-1 text-[#111827] font-medium">
                 {email}
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full lg:w-auto lg:min-w-[420px]">
-              {/* 1. mailto */}
               <a
                 href={`mailto:${email}?subject=${encodeURIComponent('[NOVA 협업 문의]')}`}
                 onClick={() =>
@@ -78,18 +66,12 @@ export const WorkWithNovaSection: React.FC = () => {
                     targetLabel: email,
                   })
                 }
-                className={`min-h-[44px] px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 border nova-transition whitespace-nowrap ${btnRadius}`}
-                style={{
-                  backgroundColor: 'var(--nova-silver)',
-                  color: 'var(--nova-bg-main)',
-                  borderColor: 'var(--nova-silver)',
-                }}
+                className={`min-h-[44px] px-4 py-2.5 text-sm font-semibold flex items-center justify-center gap-2 bg-[#111827] text-[#FFFFFF] hover:bg-[#465C77] transition-colors whitespace-nowrap ${btnRadius}`}
               >
                 <Mail size={16} />
                 <span>이메일 작성</span>
               </a>
 
-              {/* 2. Gmail compose */}
               <a
                 href={gmailUrl}
                 target="_blank"
@@ -100,33 +82,21 @@ export const WorkWithNovaSection: React.FC = () => {
                     targetLabel: email,
                   })
                 }
-                className={`min-h-[44px] px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 border nova-transition whitespace-nowrap hover:border-[#C5CBD3] ${btnRadius}`}
-                style={{
-                  backgroundColor: 'var(--nova-bg-secondary)',
-                  color: 'var(--nova-text-primary)',
-                  borderColor: 'var(--nova-border)',
-                }}
+                className={`min-h-[44px] px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 border border-[#E5E7EB] bg-[#F5F6F8] text-[#111827] hover:border-[#D1D5DB] transition-colors whitespace-nowrap ${btnRadius}`}
               >
                 <ExternalLink size={16} />
                 <span>Gmail에서 작성</span>
               </a>
 
-              {/* 3. Copy email with in-app browser fallback */}
               <button
                 type="button"
                 onClick={handleCopyEmail}
-                className={`min-h-[44px] px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 border nova-transition whitespace-nowrap hover:border-[#C5CBD3] ${btnRadius}`}
-                style={{
-                  backgroundColor: 'var(--nova-bg-secondary)',
-                  color: 'var(--nova-text-primary)',
-                  borderColor: 'var(--nova-border)',
-                }}
+                className={`min-h-[44px] px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 border border-[#E5E7EB] bg-[#F5F6F8] text-[#111827] hover:border-[#D1D5DB] transition-colors whitespace-nowrap ${btnRadius}`}
               >
-                {copied ? <Check size={16} className="text-[#C5CBD3]" /> : <Copy size={16} />}
+                {copied ? <Check size={16} className="text-[#465C77]" /> : <Copy size={16} />}
                 <span>{copied ? '이메일 복사됨' : '이메일 주소 복사'}</span>
               </button>
 
-              {/* 4. Instagram DM */}
               {dmUrl && (
                 <a
                   href={dmUrl}
@@ -138,12 +108,7 @@ export const WorkWithNovaSection: React.FC = () => {
                       targetLabel: 'Instagram DM',
                     })
                   }
-                  className={`min-h-[44px] px-4 py-2.5 text-sm font-medium flex items-center justify-center gap-2 border nova-transition whitespace-nowrap hover:opacity-90 ${btnRadius}`}
-                  style={{
-                    backgroundColor: 'var(--nova-accent)',
-                    color: '#F3F4F6',
-                    borderColor: 'var(--nova-accent)',
-                  }}
+                  className={`min-h-[44px] px-4 py-2.5 text-sm font-semibold flex items-center justify-center gap-2 border border-[#465C77] bg-[#465C77] text-[#FFFFFF] hover:bg-[#374A61] transition-colors whitespace-nowrap ${btnRadius}`}
                 >
                   <MessageCircle size={16} />
                   <span>Instagram DM 문의</span>
@@ -152,10 +117,9 @@ export const WorkWithNovaSection: React.FC = () => {
             </div>
           </div>
 
-          {/* Fallback manual copy input for strict in-app browsers */}
           {showManualCopy && (
-            <div className="mt-6 pt-5 border-t border-[#303741] space-y-2">
-              <p className="text-xs text-[#929AA6]">
+            <div className="mt-6 pt-5 border-t border-[#E5E7EB] space-y-2">
+              <p className="text-xs text-[#667085]">
                 인앱 브라우저 환경에서 자동 복사가 제한되었습니다. 아래 주소를 길게 눌러 직접 복사해 주세요.
               </p>
               <div className="flex items-center gap-2 max-w-md">
@@ -166,12 +130,12 @@ export const WorkWithNovaSection: React.FC = () => {
                   onFocus={(e) => e.currentTarget.select()}
                   onClick={(e) => e.currentTarget.select()}
                   aria-label="NOVA 문의 이메일 주소"
-                  className="w-full min-h-[44px] px-3 py-2 text-sm font-mono-tabular bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6] focus:outline-none focus:border-[#C5CBD3]"
+                  className="w-full min-h-[44px] px-3 py-2 text-sm font-mono-tabular bg-[#F5F6F8] border border-[#E5E7EB] rounded text-[#111827] focus:outline-none focus:border-[#465C77]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowManualCopy(false)}
-                  className="min-h-[44px] px-3 text-xs border border-[#303741] rounded text-[#929AA6] hover:text-[#F3F4F6] shrink-0"
+                  className="min-h-[44px] px-3 text-xs border border-[#E5E7EB] rounded text-[#667085] hover:text-[#111827] shrink-0"
                 >
                   닫기
                 </button>

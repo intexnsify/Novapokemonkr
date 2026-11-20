@@ -38,6 +38,8 @@ export const DashboardTab: React.FC = () => {
     sponsors,
     reviews,
     retailDrops,
+    newsInbox,
+    newsSyncState,
     analyticsEvents,
     setActiveMenu,
     showToast,
@@ -49,6 +51,7 @@ export const DashboardTab: React.FC = () => {
     (e) => e.eventType === 'page_view' && e.dateKey === todayKey
   ).length;
   const pendingBuybacks = buybacks.filter((b) => b.status === '신규' || b.status === '검토 중').length;
+  const pendingNewsInbox = newsInbox.filter((n) => n.status === 'pending').length;
 
   const sampleCount =
     products.filter((p) => p.isSample && p.visibilityState !== 'trashed').length +
@@ -104,6 +107,11 @@ export const DashboardTab: React.FC = () => {
       label: '게시된 뉴스',
       value: posts.filter((p) => p.visibilityState === 'published').length,
       menu: 'posts' as const,
+    },
+    {
+      label: '해외 뉴스 승인 대기',
+      value: pendingNewsInbox,
+      menu: 'news_inbox' as const,
     },
     {
       label: '공지사항',
@@ -174,6 +182,27 @@ export const DashboardTab: React.FC = () => {
           className="min-h-[40px] px-4 py-2 bg-[#C5CBD3] text-[#080A0D] rounded text-xs font-semibold whitespace-nowrap shrink-0 hover:bg-[#F3F4F6]"
         >
           정가·추첨 사진 관리 열기 →
+        </button>
+      </div>
+
+      <div className="border border-[#303741] rounded-lg p-5 bg-[#171C23] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <p className="text-xs font-mono-tabular text-[#C5CBD3]">
+            GLOBAL TCG NEWS SYNC · 대기 {pendingNewsInbox}건 · 오류 {newsSyncState?.lastErrorCount ?? 0}건
+          </p>
+          <p className="text-sm font-semibold text-[#F3F4F6]">
+            해외 TCG 뉴스 수집함 &amp; 수동 확인
+          </p>
+          <p className="text-xs text-[#929AA6]">
+            마지막 동기화: {newsSyncState?.lastSyncedAt ? `${formatKST(newsSyncState.lastSyncedAt)} KST` : '미실행'} · 수집된 기사는 관리자 승인 전까지 공개되지 않습니다.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setActiveMenu('news_inbox')}
+          className="min-h-[40px] px-4 py-2 bg-[#11151A] border border-[#C5CBD3]/60 text-[#F3F4F6] rounded text-xs font-semibold whitespace-nowrap shrink-0 hover:border-[#C5CBD3]"
+        >
+          해외 뉴스 수집함 열기 →
         </button>
       </div>
 

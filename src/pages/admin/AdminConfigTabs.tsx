@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { ArrowDown, ArrowUp, Eye, EyeOff, GripVertical, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
-import { ASSET_IMAGES, DEFAULT_THEME } from '../../lib/defaults';
+import { ASSET_IMAGES, DEFAULT_HERO_SLIDES, DEFAULT_THEME } from '../../lib/defaults';
 import { uploadPublicMedia } from '../../lib/storage';
 import { generateSafeId } from '../../lib/utils';
-import { CommunityLinkItem, HomeActionItem, SiteConfig } from '../../types/nova';
+import { CommunityLinkItem, HeroSlide, HomeActionItem, SiteConfig } from '../../types/nova';
 import { SafeImage } from '../../components/SafeImage';
 import { useAdmin } from './AdminContext';
 
@@ -133,7 +133,7 @@ export const BrandSettingsTab: React.FC = () => {
                 />
               </label>
             </div>
-            <div className="w-16 h-16 rounded-full ring-1 ring-[#8068BA]/35 overflow-hidden bg-[#080A0D]">
+            <div className="w-16 h-16 rounded-full border border-[#303741] overflow-hidden bg-[#080A0D]">
               <SafeImage
                 key={draftConfig.brand.logoUrl}
                 src={draftConfig.brand.logoUrl}
@@ -327,18 +327,18 @@ export const ThemeSettingsTab: React.FC = () => {
 
   const restoreDefaultTheme = () => {
     updateTheme({ ...DEFAULT_THEME });
-    showToast('기본 블랙·실버 테마(#080A0D / #C5CBD3)로 복원되었습니다.');
+    showToast('기본 스토어 테마(#FFFFFF / #111827 / #465C77)로 복원되었습니다.');
   };
 
   const colorFields: { key: keyof SiteConfig['theme']; label: string }[] = [
     { key: 'mainBg', label: '메인 배경' },
     { key: 'secondaryBg', label: '보조 배경' },
     { key: 'cardBg', label: '카드 배경' },
-    { key: 'silver', label: '메탈릭 실버' },
+    { key: 'silver', label: '강조 포인트' },
     { key: 'primaryText', label: '주요 텍스트' },
     { key: 'secondaryText', label: '보조 텍스트' },
     { key: 'border', label: '구분선' },
-    { key: 'accent', label: '포인트 컬러' },
+    { key: 'accent', label: '슬레이트 포인트' },
   ];
 
   const previewRadius =
@@ -359,7 +359,7 @@ export const ThemeSettingsTab: React.FC = () => {
           className="min-h-[40px] px-4 py-2 text-xs font-medium bg-[#171C23] border border-[#303741] rounded-md text-[#C5CBD3] hover:border-[#C5CBD3] inline-flex items-center gap-2 shrink-0"
         >
           <RotateCcw size={14} />
-          <span>기본 블랙·실버로 복원</span>
+          <span>기본 스토어 테마로 복원</span>
         </button>
       </div>
 
@@ -491,11 +491,70 @@ export const ThemeSettingsTab: React.FC = () => {
    4. 메인 화면 구성 (액션 카드 + 섹션 드래그&드롭 순서 변경)
 ============================================================================ */
 export const HomeLayoutTab: React.FC = () => {
-  const { draftConfig, setDraftConfig, setHasUnsavedChanges } = useAdmin();
+  const { draftConfig, setDraftConfig, setHasUnsavedChanges, showToast } = useAdmin();
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [uploadingSlideKey, setUploadingSlideKey] = useState<string | null>(null);
+
+  const heroSlides = [
+    ...(draftConfig.brand.heroSlides && draftConfig.brand.heroSlides.length > 0
+      ? draftConfig.brand.heroSlides
+      : DEFAULT_HERO_SLIDES),
+  ].sort((a, b) => a.order - b.order);
 
   const actions = [...draftConfig.homeActions].sort((a, b) => a.order - b.order);
   const sections = [...draftConfig.homeSections].sort((a, b) => a.order - b.order);
+
+  const updateHeroSlides = (next: HeroSlide[]) => {
+    const normalized = next.map((s, idx) => ({ ...s, order: idx }));
+    setDraftConfig((prev) => ({
+      ...prev,
+      brand: {
+        ...prev.brand,
+        heroSlides: normalized,
+      },
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  const addHeroSlide = () => {
+    updateHeroSlides([
+      ...heroSlides,
+      {
+        id: generateSafeId('slide'),
+        badge: 'NOVA CURATED',
+        title: '새 메인 프로모션 배너',
+        subtitle: '배너 설명 문구를 입력하세요.',
+        ctaLabel: '자세히 보기',
+        ctaUrl: '/shop',
+        desktopImageUrl: ASSET_IMAGES.hero,
+        mobileImageUrl: ASSET_IMAGES.hero,
+        accentTheme: 'dark',
+        order: heroSlides.length,
+        visible: true,
+      },
+    ]);
+  };
+
+  const handleSlideUpload = async (
+    slideId: string,
+    targetField: 'desktopImageUrl' | 'mobileImageUrl',
+    file?: File
+  ) => {
+    if (!file) return;
+    const key = `${slideId}_${targetField}`;
+    setUploadingSlideKey(key);
+    try {
+      const url = await uploadPublicMedia('brand', file);
+      updateHeroSlides(
+        heroSlides.map((s) => (s.id === slideId ? { ...s, [targetField]: url } : s))
+      );
+      showToast('배너 이미지가 업로드되었습니다. [초안 저장] 또는 [변경사항 게시]를 눌러주세요.');
+    } catch (err) {
+      showToast(`업로드 실패: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setUploadingSlideKey(null);
+    }
+  };
 
   const updateActions = (next: HomeActionItem[]) => {
     const normalized = next.map((item, idx) => ({ ...item, order: idx }));
@@ -539,8 +598,274 @@ export const HomeLayoutTab: React.FC = () => {
       <div className="border-b border-[#303741] pb-4">
         <h1 className="text-xl font-semibold text-[#F3F4F6]">메인 화면 구성</h1>
         <p className="text-xs text-[#929AA6] mt-1">
-          대형 액션 카드와 홈페이지 섹션 노출, 개수, 드래그&amp;드롭 순서를 관리합니다.
+          메인 히어로 슬라이더, 대형 액션 카드 및 홈페이지 섹션 노출·순서를 관리합니다.
         </p>
+      </div>
+
+      {/* Hero Banner Slider Manager */}
+      <div className="border border-[#303741] rounded-lg p-6 bg-[#171C23] space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-[#F3F4F6]">
+              메인 히어로 슬라이더 ({heroSlides.length})
+            </h2>
+            <p className="text-[11px] text-[#929AA6] mt-0.5">
+              홈 상단 대형 프로모션 배너 슬라이드를 순서대로 노출합니다. (광고·스폰서 배너와는 별도 운영)
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                updateHeroSlides(DEFAULT_HERO_SLIDES);
+                showToast('기본 히어로 슬라이드 구성으로 복원되었습니다.');
+              }}
+              className="min-h-[36px] px-3 py-1.5 text-xs border border-[#303741] rounded text-[#C5CBD3] hover:border-[#C5CBD3] inline-flex items-center gap-1.5"
+            >
+              <RotateCcw size={13} />
+              <span>기본값 복원</span>
+            </button>
+            <button
+              type="button"
+              onClick={addHeroSlide}
+              className="min-h-[36px] px-3 py-1.5 text-xs font-semibold bg-[#C5CBD3] text-[#080A0D] rounded inline-flex items-center gap-1.5"
+            >
+              <Plus size={14} />
+              <span>슬라이드 추가</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {heroSlides.map((slide, idx) => (
+            <div
+              key={slide.id}
+              className="border border-[#303741] rounded-md p-4 bg-[#11151A] space-y-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-mono-tabular text-[#929AA6]">
+                  SLIDE #{idx + 1}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (idx === 0) return;
+                      const copy = [...heroSlides];
+                      [copy[idx - 1], copy[idx]] = [copy[idx], copy[idx - 1]];
+                      updateHeroSlides(copy);
+                    }}
+                    className="p-1.5 border border-[#303741] rounded text-[#929AA6] hover:text-[#F3F4F6]"
+                    aria-label="슬라이드 위로"
+                  >
+                    <ArrowUp size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (idx === heroSlides.length - 1) return;
+                      const copy = [...heroSlides];
+                      [copy[idx + 1], copy[idx]] = [copy[idx], copy[idx + 1]];
+                      updateHeroSlides(copy);
+                    }}
+                    className="p-1.5 border border-[#303741] rounded text-[#929AA6] hover:text-[#F3F4F6]"
+                    aria-label="슬라이드 아래로"
+                  >
+                    <ArrowDown size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateHeroSlides(
+                        heroSlides.map((s, i) => (i === idx ? { ...s, visible: !s.visible } : s))
+                      )
+                    }
+                    className={`px-2.5 py-1 border rounded text-xs ${
+                      slide.visible
+                        ? 'border-[#C5CBD3]/60 text-[#F3F4F6]'
+                        : 'border-[#303741] text-[#929AA6]'
+                    }`}
+                  >
+                    {slide.visible ? '노출중' : '숨김'}
+                  </button>
+                  {heroSlides.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => updateHeroSlides(heroSlides.filter((_, i) => i !== idx))}
+                      className="p-1.5 border border-red-400/40 rounded text-red-200"
+                      aria-label="슬라이드 삭제"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <input
+                  type="text"
+                  value={slide.badge || ''}
+                  onChange={(e) =>
+                    updateHeroSlides(
+                      heroSlides.map((s, i) => (i === idx ? { ...s, badge: e.target.value } : s))
+                    )
+                  }
+                  placeholder="상단 배지 (예: NOVA CURATED STORE)"
+                  className="min-h-[38px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                />
+                <input
+                  type="text"
+                  value={slide.ctaLabel}
+                  onChange={(e) =>
+                    updateHeroSlides(
+                      heroSlides.map((s, i) => (i === idx ? { ...s, ctaLabel: e.target.value } : s))
+                    )
+                  }
+                  placeholder="버튼 문구 (예: 스토어 바로가기)"
+                  className="min-h-[38px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                />
+                <input
+                  type="text"
+                  value={slide.ctaUrl}
+                  onChange={(e) =>
+                    updateHeroSlides(
+                      heroSlides.map((s, i) => (i === idx ? { ...s, ctaUrl: e.target.value } : s))
+                    )
+                  }
+                  placeholder="이동 링크 (/shop, /drops 등)"
+                  className="min-h-[38px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                />
+                <input
+                  type="text"
+                  value={slide.title}
+                  onChange={(e) =>
+                    updateHeroSlides(
+                      heroSlides.map((s, i) => (i === idx ? { ...s, title: e.target.value } : s))
+                    )
+                  }
+                  placeholder="메인 헤드라인"
+                  className="sm:col-span-2 min-h-[38px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                />
+                <select
+                  value={slide.accentTheme || 'dark'}
+                  onChange={(e) =>
+                    updateHeroSlides(
+                      heroSlides.map((s, i) =>
+                        i === idx
+                          ? { ...s, accentTheme: e.target.value as 'dark' | 'light' }
+                          : s
+                      )
+                    )
+                  }
+                  className="min-h-[38px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                >
+                  <option value="dark">다크 오버레이 (흰 텍스트)</option>
+                  <option value="light">라이트 오버레이 (짙은 텍스트)</option>
+                </select>
+                <input
+                  type="text"
+                  value={slide.subtitle}
+                  onChange={(e) =>
+                    updateHeroSlides(
+                      heroSlides.map((s, i) => (i === idx ? { ...s, subtitle: e.target.value } : s))
+                    )
+                  }
+                  placeholder="보조 설명 문구"
+                  className="sm:col-span-3 min-h-[38px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] text-[#929AA6]">PC 배너 이미지 URL</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={slide.desktopImageUrl}
+                      onChange={(e) =>
+                        updateHeroSlides(
+                          heroSlides.map((s, i) =>
+                            i === idx ? { ...s, desktopImageUrl: e.target.value } : s
+                          )
+                        )
+                      }
+                      className="flex-1 min-h-[36px] px-2.5 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                    />
+                    <label className="min-h-[36px] px-2.5 bg-[#171C23] border border-[#303741] rounded text-[11px] text-[#C5CBD3] inline-flex items-center gap-1 cursor-pointer hover:border-[#C5CBD3] shrink-0">
+                      <Upload size={12} />
+                      <span>
+                        {uploadingSlideKey === `${slide.id}_desktopImageUrl` ? '중...' : 'PC 업로드'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          handleSlideUpload(slide.id, 'desktopImageUrl', file);
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                    {slide.desktopImageUrl && (
+                      <div className="w-16 h-9 rounded border border-[#303741] overflow-hidden bg-[#080A0D] shrink-0">
+                        <SafeImage
+                          src={slide.desktopImageUrl}
+                          alt="PC 슬라이드"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] text-[#929AA6]">모바일 배너 이미지 URL (선택)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={slide.mobileImageUrl || ''}
+                      onChange={(e) =>
+                        updateHeroSlides(
+                          heroSlides.map((s, i) =>
+                            i === idx ? { ...s, mobileImageUrl: e.target.value } : s
+                          )
+                        )
+                      }
+                      placeholder="미입력 시 PC 이미지 사용"
+                      className="flex-1 min-h-[36px] px-2.5 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+                    />
+                    <label className="min-h-[36px] px-2.5 bg-[#171C23] border border-[#303741] rounded text-[11px] text-[#C5CBD3] inline-flex items-center gap-1 cursor-pointer hover:border-[#C5CBD3] shrink-0">
+                      <Upload size={12} />
+                      <span>
+                        {uploadingSlideKey === `${slide.id}_mobileImageUrl` ? '중...' : '모바일 업로드'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          e.target.value = '';
+                          handleSlideUpload(slide.id, 'mobileImageUrl', file);
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                    {(slide.mobileImageUrl || slide.desktopImageUrl) && (
+                      <div className="w-10 h-9 rounded border border-[#303741] overflow-hidden bg-[#080A0D] shrink-0">
+                        <SafeImage
+                          src={slide.mobileImageUrl || slide.desktopImageUrl}
+                          alt="모바일 슬라이드"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Main Action Cards */}

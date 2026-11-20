@@ -344,3 +344,21 @@ export function getDropStatusInfo(drop: RetailDrop, nowMs = Date.now()): DropCom
   return { label: '확인 필요', isEnded: false, isUrgent: false, isActive: false };
 }
 
+export function stripMarkdown(input?: string): string {
+  if (!input) return '';
+  return input
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\{\{IMG:[^}]+\}\}/g, ' ')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/^[-*+]\s+/gm, '')
+    .replace(/^\d+\.\s+/gm, '')
+    .replace(/(\*\*|__|\*|_|~~)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+

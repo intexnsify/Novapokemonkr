@@ -3,6 +3,8 @@ import { onAuthStateChanged, User } from 'firebase/auth';
 import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
 import {
   ASSET_IMAGES,
+  DEFAULT_HERO_SLIDES,
+  DEFAULT_ORIPA_ITEMS,
   DEFAULT_SITE_CONFIG,
   INITIAL_FAQS_SEED,
   INITIAL_RETAIL_CAMPAIGNS_SEED,
@@ -13,9 +15,10 @@ import {
   INITIAL_SAMPLE_PRODUCTS,
   INITIAL_SAMPLE_REVIEWS,
   INITIAL_SPONSORS_SEED,
+  LEGACY_BUYBACK_HERO,
   LEGACY_DEFAULT_LOGO,
 } from '../lib/defaults';
-import { auth, db, handleFirestoreError, OperationType, testConnection } from '../lib/firebase';
+import { auth, db, handleFirestoreError, isFirestoreQuotaError, OperationType, testConnection } from '../lib/firebase';
 import {
   getEventStatus,
   isScheduledVisible,
@@ -26,7 +29,9 @@ import {
 import {
   EventItem,
   FaqItem,
+  HeroSlide,
   Notice,
+  OripaItem,
   Post,
   Product,
   RetailCampaign,
@@ -34,6 +39,7 @@ import {
   Review,
   SiteConfig,
   Sponsor,
+  SponsorExtendedMeta,
 } from '../types/nova';
 
 interface SiteContextValue {
@@ -43,11 +49,16 @@ interface SiteContextValue {
   loading: boolean;
   connectionError: string | null;
   retryConnection: () => void;
+  heroSlides: HeroSlide[];
+  buybackGuideImageUrl: string;
+  oripaItems: OripaItem[];
+  sponsorMeta: Record<string, SponsorExtendedMeta>;
   products: Product[];
   posts: Post[];
   notices: Notice[];
   events: EventItem[];
   sponsors: Sponsor[];
+  endedSponsors: Sponsor[];
   reviews: Review[];
   faqs: FaqItem[];
   retailCampaigns: RetailCampaign[];
@@ -58,6 +69,32 @@ interface SiteContextValue {
 }
 
 const SiteContext = createContext<SiteContextValue | null>(null);
+
+function normalizeHeroSlides(rawSlides: HeroSlide[] | undefined, fallbackHeroImage: string): HeroSlide[] {
+  const source = Array.isArray(rawSlides) && rawSlides.length > 0 ? rawSlides : DEFAULT_HERO_SLIDES;
+  const cleaned = source
+    .map((s, idx) => {
+      const desktop =
+        !s.desktopImageUrl || s.desktopImageUrl === LEGACY_BUYBACK_HERO
+          ? idx === 0
+            ? fallbackHeroImage
+            : ASSET_IMAGES.hero
+          : s.desktopImageUrl;
+      const mobile =
+        !s.mobileImageUrl || s.mobileImageUrl === LEGACY_BUYBACK_HERO
+          ? desktop
+          : s.mobileImageUrl;
+      return {
+        ...s,
+        desktopImageUrl: desktop,
+        mobileImageUrl: mobile,
+        order: Number.isFinite(s.order) ? s.order : idx,
+        visible: s.visible !== false,
+      };
+    })
+    .sort((a, b) => a.order - b.order);
+  return cleaned;
+}
 
 export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<SiteConfig>(DEFAULT_SITE_CONFIG);
@@ -132,6 +169,29 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const configDocId = isPreviewDraft && isAdminVerified ? 'draft' : 'published';
 
+      const onListenerError = (
+        err: unknown,
+        op: OperationType,
+        path: string,
+        ignoreDraftPermission = false
+      ) => {
+        if (!active) return;
+        if (ignoreDraftPermission) {
+          setLoading(false);
+          return;
+        }
+        if (isFirestoreQuotaError(err)) {
+          setConnectionError(
+            'Firestore 무료 일일 읽기 한도(Quota)를 초과했습니다. 한도 초기화(매일 자정 PST) 후 자동으로 복구되며, 현재는 기본 안내 콘텐츠가 표시됩니다.'
+          );
+          setLoading(false);
+          return;
+        }
+        setConnectionError('사이트 데이터를 불러오는 중 연결 오류가 발생했습니다.');
+        setLoading(false);
+        handleFirestoreError(err, op, path);
+      };
+
       unsubs.push(
         onSnapshot(
           doc(db, 'site_config', configDocId),
@@ -143,6 +203,19 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
               if (!mergedBrand.logoUrl || mergedBrand.logoUrl === LEGACY_DEFAULT_LOGO) {
                 mergedBrand.logoUrl = ASSET_IMAGES.logo;
               }
+              if (!mergedBrand.heroImageUrl || mergedBrand.heroImageUrl === LEGACY_BUYBACK_HERO) {
+                mergedBrand.heroImageUrl = ASSET_IMAGES.hero;
+              }
+              mergedBrand.heroSlides = normalizeHeroSlides(
+                data.brand?.heroSlides,
+                mergedBrand.heroImageUrl
+              );
+
+              const mergedSeo = { ...DEFAULT_SITE_CONFIG.seo, ...(data.seo || {}) };
+              if (!mergedSeo.ogImageUrl || mergedSeo.ogImageUrl === LEGACY_BUYBACK_HERO) {
+                mergedSeo.ogImageUrl = ASSET_IMAGES.hero;
+              }
+
               setConfig({
                 ...DEFAULT_SITE_CONFIG,
                 ...data,
@@ -152,7 +225,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 ),
                 brand: mergedBrand,
                 theme: { ...DEFAULT_SITE_CONFIG.theme, ...(data.theme || {}) },
-                seo: { ...DEFAULT_SITE_CONFIG.seo, ...(data.seo || {}) },
+                seo: mergedSeo,
                 legal: {
                   ...DEFAULT_SITE_CONFIG.legal,
                   ...(data.legal || {}),
@@ -166,6 +239,11 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     data.eventsSettings?.hideEndedEventsGlobally ??
                     DEFAULT_SITE_CONFIG.eventsSettings?.hideEndedEventsGlobally ??
                     false,
+                  sponsorMeta: data.eventsSettings?.sponsorMeta ?? {},
+                  oripaItems:
+                    data.eventsSettings?.oripaItems !== undefined
+                      ? data.eventsSettings.oripaItems
+                      : DEFAULT_ORIPA_ITEMS,
                 },
               });
               setIsConfigInitialized(true);
@@ -174,16 +252,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
             setLoading(false);
           },
-          (err) => {
-            if (configDocId === 'draft') {
-              // If draft preview fails for non-admin, ignore gracefully
-              setLoading(false);
-              return;
-            }
-            setConnectionError('사이트 설정을 불러오지 못했습니다.');
-            setLoading(false);
-            handleFirestoreError(err, OperationType.GET, `site_config/${configDocId}`);
-          }
+          (err) => onListenerError(err, OperationType.GET, `site_config/${configDocId}`, configDocId === 'draft')
         )
       );
 
@@ -194,7 +263,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!active) return;
             setRawProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Product)));
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'products')
+          (err) => onListenerError(err, OperationType.LIST, 'products')
         )
       );
 
@@ -205,7 +274,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!active) return;
             setRawPosts(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Post)));
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'posts')
+          (err) => onListenerError(err, OperationType.LIST, 'posts')
         )
       );
 
@@ -216,7 +285,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!active) return;
             setRawNotices(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Notice)));
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'notices')
+          (err) => onListenerError(err, OperationType.LIST, 'notices')
         )
       );
 
@@ -227,7 +296,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!active) return;
             setRawEvents(snap.docs.map((d) => ({ id: d.id, ...d.data() } as EventItem)));
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'events')
+          (err) => onListenerError(err, OperationType.LIST, 'events')
         )
       );
 
@@ -238,7 +307,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!active) return;
             setRawSponsors(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sponsor)));
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'sponsors')
+          (err) => onListenerError(err, OperationType.LIST, 'sponsors')
         )
       );
 
@@ -249,7 +318,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!active) return;
             setRawReviews(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Review)));
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'reviews')
+          (err) => onListenerError(err, OperationType.LIST, 'reviews')
         )
       );
 
@@ -260,7 +329,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!active) return;
             setRawFaqs(snap.docs.map((d) => ({ id: d.id, ...d.data() } as FaqItem)));
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'faqs')
+          (err) => onListenerError(err, OperationType.LIST, 'faqs')
         )
       );
 
@@ -273,7 +342,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
               snap.docs.map((d) => ({ id: d.id, ...d.data() } as RetailCampaign))
             );
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'retail_campaigns')
+          (err) => onListenerError(err, OperationType.LIST, 'retail_campaigns')
         )
       );
 
@@ -284,7 +353,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (!active) return;
             setRawRetailDrops(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RetailDrop)));
           },
-          (err) => handleFirestoreError(err, OperationType.LIST, 'retail_drops')
+          (err) => onListenerError(err, OperationType.LIST, 'retail_drops')
         )
       );
     }
@@ -296,23 +365,37 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [isPreviewDraft, isAdminVerified, retryTick]);
 
-  // Apply dynamic theme CSS variables
+  // Apply font scale safely without letting legacy dark-mode Firestore theme values overwrite the light store canvas
   useEffect(() => {
     const t = config.theme;
     const root = document.documentElement;
-    root.style.setProperty('--nova-bg-main', t.mainBg || '#080A0D');
-    root.style.setProperty('--nova-bg-secondary', t.secondaryBg || '#11151A');
-    root.style.setProperty('--nova-bg-card', t.cardBg || '#171C23');
-    root.style.setProperty('--nova-silver', t.silver || '#C5CBD3');
-    root.style.setProperty('--nova-text-primary', t.primaryText || '#F3F4F6');
-    root.style.setProperty('--nova-text-secondary', t.secondaryText || '#929AA6');
-    root.style.setProperty('--nova-border', t.border || '#303741');
-    root.style.setProperty('--nova-accent', t.accent || '#8068BA');
     const scaleMap = { sm: '0.94', md: '1', lg: '1.06' };
     root.style.setProperty('--nova-font-scale', scaleMap[t.fontScale || 'md'] || '1');
   }, [config.theme]);
 
-  // Derived sorted & scheduled-filtered collections (with pre-seed fallback ONLY before DB is initialized)
+  const sponsorMeta = useMemo(
+    () => config.eventsSettings?.sponsorMeta || {},
+    [config.eventsSettings?.sponsorMeta]
+  );
+
+  const heroSlides = useMemo(
+    () =>
+      normalizeHeroSlides(config.brand.heroSlides, config.brand.heroImageUrl).filter(
+        (s) => s.visible
+      ),
+    [config.brand.heroSlides, config.brand.heroImageUrl]
+  );
+
+  const oripaItems = useMemo(() => {
+    const raw =
+      config.eventsSettings?.oripaItems !== undefined
+        ? config.eventsSettings.oripaItems
+        : DEFAULT_ORIPA_ITEMS;
+    return [...raw]
+      .filter((o) => o.visible)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [config.eventsSettings?.oripaItems]);
+
   const products = useMemo(() => {
     const list: Product[] = isConfigInitialized ? rawProducts : (INITIAL_SAMPLE_PRODUCTS as Product[]);
     return [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
@@ -358,23 +441,30 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
   }, [isConfigInitialized, rawEvents, config.eventsSettings]);
 
-  const sponsors = useMemo(() => {
+  const { sponsors, endedSponsors } = useMemo(() => {
     const list: Sponsor[] = isConfigInitialized
       ? rawSponsors.length > 0
         ? rawSponsors
         : (INITIAL_SPONSORS_SEED as Sponsor[])
       : (INITIAL_SPONSORS_SEED as Sponsor[]);
     const now = Date.now();
-    return list
-      .filter((s) => {
-        const start = toDateSafe(s.startAt)?.getTime();
-        const end = toDateSafe(s.endAt)?.getTime();
-        if (start && now < start) return false;
-        if (end && now > end) return false;
-        return true;
-      })
-      .sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
-  }, [isConfigInitialized, rawSponsors]);
+    const active: Sponsor[] = [];
+    const ended: Sponsor[] = [];
+    list.forEach((s) => {
+      if (sponsorMeta[s.id]?.isPaused) return;
+      const start = toDateSafe(s.startAt)?.getTime();
+      const end = toDateSafe(s.endAt)?.getTime();
+      if (start && now < start) return;
+      if (end && now > end) {
+        ended.push(s);
+        return;
+      }
+      active.push(s);
+    });
+    active.sort((a, b) => (a.priority ?? 99) - (b.priority ?? 99));
+    ended.sort((a, b) => (b.priority ?? 99) - (a.priority ?? 99));
+    return { sponsors: active, endedSponsors: ended };
+  }, [isConfigInitialized, rawSponsors, sponsorMeta]);
 
   const reviews = useMemo(() => {
     const list: Review[] = isConfigInitialized ? rawReviews : (INITIAL_SAMPLE_REVIEWS as Review[]);
@@ -430,11 +520,16 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     connectionError,
     retryConnection,
+    heroSlides,
+    buybackGuideImageUrl: ASSET_IMAGES.buybackGuide,
+    oripaItems,
+    sponsorMeta,
     products,
     posts,
     notices,
     events,
     sponsors,
+    endedSponsors,
     reviews,
     faqs,
     retailCampaigns,

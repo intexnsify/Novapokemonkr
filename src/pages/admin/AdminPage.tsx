@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  AlertTriangle,
   Archive,
   BarChart3,
   Bell,
@@ -17,6 +18,7 @@ import {
   MessageSquareQuote,
   Package,
   Palette,
+  Rss,
   Save,
   Send,
   Share2,
@@ -25,6 +27,7 @@ import {
   Tag,
   Ticket,
   X,
+  Youtube,
 } from 'lucide-react';
 import { AdminMenuId, AdminProvider, useAdmin } from './AdminContext';
 import { AdminGate } from './AdminGate';
@@ -47,6 +50,8 @@ import {
   SponsorsTab,
 } from './AdminContentTabs';
 import { DropsTab } from './AdminDropsTab';
+import { AdminNewsInboxTab } from './AdminNewsInboxTab';
+import { AdminOripaTab } from './AdminOripaTab';
 
 const MENU_ITEMS: { id: AdminMenuId; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard', label: '1. 대시보드', icon: <LayoutDashboard size={15} /> },
@@ -57,6 +62,7 @@ const MENU_ITEMS: { id: AdminMenuId; label: string; icon: React.ReactNode }[] = 
   { id: 'products', label: '6. 상품 관리', icon: <Package size={15} /> },
   { id: 'buybacks', label: '7. 매입 신청 관리', icon: <Inbox size={15} /> },
   { id: 'posts', label: '8. 게시글/뉴스', icon: <FileText size={15} /> },
+  { id: 'news_inbox', label: '해외 뉴스 수집함', icon: <Rss size={15} /> },
   { id: 'notices', label: '9. 공지사항', icon: <Bell size={15} /> },
   { id: 'sponsors', label: '10. 배너/협찬', icon: <Tag size={15} /> },
   { id: 'events', label: '11. 라이브/이벤트', icon: <Calendar size={15} /> },
@@ -67,6 +73,7 @@ const MENU_ITEMS: { id: AdminMenuId; label: string; icon: React.ReactNode }[] = 
   { id: 'backup', label: '16. 백업/휴지통', icon: <Archive size={15} /> },
   { id: 'admins', label: '17. 관리자 설정', icon: <ShieldCheck size={15} /> },
   { id: 'drops', label: '18. 정가·추첨 관리', icon: <Ticket size={15} /> },
+  { id: 'oripa', label: '19. 오리파 / 라이브 관리', icon: <Youtube size={15} /> },
 ];
 
 const AdminShell: React.FC = () => {
@@ -82,6 +89,7 @@ const AdminShell: React.FC = () => {
     publishDraftToLive,
     discardDraftChanges,
     statusToast,
+    quotaWarning,
   } = useAdmin();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navigate = useNavigate();
@@ -116,6 +124,8 @@ const AdminShell: React.FC = () => {
         return <BuybacksTab />;
       case 'posts':
         return <PostsTab />;
+      case 'news_inbox':
+        return <AdminNewsInboxTab />;
       case 'notices':
         return <NoticesTab />;
       case 'sponsors':
@@ -136,6 +146,8 @@ const AdminShell: React.FC = () => {
         return <AdminsTab />;
       case 'drops':
         return <DropsTab />;
+      case 'oripa':
+        return <AdminOripaTab />;
       default:
         return <DashboardTab />;
     }
@@ -190,7 +202,7 @@ const AdminShell: React.FC = () => {
           <button
             type="button"
             disabled={publishingConfig}
-            onClick={publishDraftToLive}
+            onClick={() => publishDraftToLive()}
             className="min-h-[38px] px-3.5 py-1.5 text-xs font-semibold bg-[#C5CBD3] text-[#080A0D] rounded hover:bg-[#F3F4F6] inline-flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
           >
             <Send size={14} />
@@ -208,6 +220,13 @@ const AdminShell: React.FC = () => {
           </button>
         </div>
       </header>
+
+      {quotaWarning && (
+        <div className="border-b border-amber-400/50 bg-amber-950/40 px-4 sm:px-6 py-2.5 flex items-start gap-2.5 text-xs text-amber-100">
+          <AlertTriangle size={15} className="text-amber-300 shrink-0 mt-0.5" />
+          <p className="leading-relaxed">{quotaWarning}</p>
+        </div>
+      )}
 
       {hasUnsavedChanges && (
         <div className="border-b border-amber-400/40 bg-amber-950/30 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">

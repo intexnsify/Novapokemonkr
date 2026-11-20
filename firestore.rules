@@ -16,7 +16,7 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function isBootstrappedAdmin() {
-      return isVerified() && request.auth.token.email.lower() == 'jwkim9633@gmail.com';
+      return isVerified() && 'email' in request.auth.token && request.auth.token.email.lower() == 'jwkim9633@gmail.com';
     }
     function isAdmin() {
       return isVerified() && (
@@ -103,15 +103,49 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidNewsImageEntry(entry) {
+      return entry is map
+        && entry.keys().hasAll(['id', 'url'])
+        && entry.keys().hasOnly(['id', 'url', 'caption', 'source', 'rights', 'rightsNote', 'alt'])
+        && isValidId(entry.id)
+        && isStringBounded(entry.url, 1, 200000)
+        && (!('caption' in entry) || isStringBounded(entry.caption, 0, 300))
+        && (!('source' in entry) || isStringBounded(entry.source, 0, 140))
+        && (!('rights' in entry) || isStringBounded(entry.rights, 0, 100))
+        && (!('rightsNote' in entry) || isStringBounded(entry.rightsNote, 0, 200))
+        && (!('alt' in entry) || isStringBounded(entry.alt, 0, 200));
+    }
+
+    function isValidNewsGalleryList(listVal) {
+      return listVal is list
+        && listVal.size() <= 10
+        && (listVal.size() < 1 || isValidNewsImageEntry(listVal[0]))
+        && (listVal.size() < 2 || isValidNewsImageEntry(listVal[1]))
+        && (listVal.size() < 3 || isValidNewsImageEntry(listVal[2]))
+        && (listVal.size() < 4 || isValidNewsImageEntry(listVal[3]))
+        && (listVal.size() < 5 || isValidNewsImageEntry(listVal[4]))
+        && (listVal.size() < 6 || isValidNewsImageEntry(listVal[5]))
+        && (listVal.size() < 7 || isValidNewsImageEntry(listVal[6]))
+        && (listVal.size() < 8 || isValidNewsImageEntry(listVal[7]))
+        && (listVal.size() < 9 || isValidNewsImageEntry(listVal[8]))
+        && (listVal.size() < 10 || isValidNewsImageEntry(listVal[9]));
+    }
+
     function isValidPost(data) {
       return data.keys().hasAll(['title', 'slug', 'category', 'content', 'isPinned', 'isSample', 'visibilityState', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['title', 'slug', 'category', 'summary', 'content', 'coverImage', 'isPinned', 'isSample', 'scheduledAt', 'seoTitle', 'seoDescription', 'visibilityState', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['title', 'slug', 'category', 'summary', 'content', 'coverImage', 'galleryImages', 'tcgCategory', 'sourceName', 'sourceUrl', 'publishedAtSource', 'inboxItemId', 'isPinned', 'isSample', 'scheduledAt', 'seoTitle', 'seoDescription', 'visibilityState', 'createdAt', 'updatedAt'])
         && isStringBounded(data.title, 1, 160)
         && isValidId(data.slug)
         && isStringBounded(data.category, 1, 50)
         && (!('summary' in data) || isStringBounded(data.summary, 0, 400))
         && isStringBounded(data.content, 1, 30000)
-        && (!('coverImage' in data) || isStringBounded(data.coverImage, 0, 600))
+        && (!('coverImage' in data) || isStringBounded(data.coverImage, 0, 200000))
+        && (!('galleryImages' in data) || isValidNewsGalleryList(data.galleryImages))
+        && (!('tcgCategory' in data) || isStringBounded(data.tcgCategory, 0, 40))
+        && (!('sourceName' in data) || isStringBounded(data.sourceName, 0, 100))
+        && (!('sourceUrl' in data) || isStringBounded(data.sourceUrl, 0, 500))
+        && (!('publishedAtSource' in data) || isStringBounded(data.publishedAtSource, 0, 80))
+        && (!('inboxItemId' in data) || isStringBounded(data.inboxItemId, 0, 128))
         && data.isPinned is bool
         && data.isSample is bool
         && (!('scheduledAt' in data) || data.scheduledAt == null || data.scheduledAt is timestamp)
@@ -119,6 +153,67 @@ service cloud.firestore {
         && (!('seoDescription' in data) || isStringBounded(data.seoDescription, 0, 300))
         && data.visibilityState in ['published', 'draft', 'trashed']
         && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNewsSource(data) {
+      return data.keys().hasAll(['name', 'siteUrl', 'sourceType', 'tcgCategory', 'enabled', 'isBuiltIn', 'lastStatus', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['name', 'siteUrl', 'feedUrl', 'sourceType', 'tcgCategory', 'enabled', 'isBuiltIn', 'lastCheckedAt', 'lastSuccessAt', 'lastStatus', 'lastError', 'lastFetchedCount', 'lastNewCount', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.name, 1, 100)
+        && isStringBounded(data.siteUrl, 1, 500)
+        && (!('feedUrl' in data) || isStringBounded(data.feedUrl, 0, 500))
+        && data.sourceType in ['rss', 'atom', 'json', 'manual_only']
+        && data.tcgCategory in ['포켓몬 TCG', '원피스 TCG', '기타 TCG']
+        && data.enabled is bool
+        && data.isBuiltIn is bool
+        && (!('lastCheckedAt' in data) || data.lastCheckedAt == null || data.lastCheckedAt is timestamp)
+        && (!('lastSuccessAt' in data) || data.lastSuccessAt == null || data.lastSuccessAt is timestamp)
+        && data.lastStatus in ['ok', 'error', 'no_public_feed', 'idle']
+        && (!('lastError' in data) || isStringBounded(data.lastError, 0, 500))
+        && (!('lastFetchedCount' in data) || data.lastFetchedCount is number)
+        && (!('lastNewCount' in data) || data.lastNewCount is number)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNewsInboxItem(data) {
+      return data.keys().hasAll(['sourceId', 'sourceName', 'originalTitle', 'originalUrl', 'canonicalUrlKey', 'tcgCategory', 'isPinned', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['sourceId', 'sourceName', 'originalTitle', 'originalUrl', 'canonicalUrlKey', 'publishedAtSource', 'tcgCategory', 'metadataAuthor', 'metadataSnippet', 'metadataImageUrl', 'duplicateCandidateOf', 'duplicateSimilarityNote', 'koreanTitle', 'novaSummary', 'coverImage', 'galleryImages', 'isPinned', 'status', 'publishedPostId', 'aiDraftGenerated', 'fetchedAt', 'createdAt', 'updatedAt'])
+        && isStringBounded(data.sourceId, 1, 128)
+        && isStringBounded(data.sourceName, 1, 100)
+        && isStringBounded(data.originalTitle, 1, 300)
+        && isStringBounded(data.originalUrl, 1, 500)
+        && isStringBounded(data.canonicalUrlKey, 1, 500)
+        && (!('publishedAtSource' in data) || isStringBounded(data.publishedAtSource, 0, 80))
+        && data.tcgCategory in ['포켓몬 TCG', '원피스 TCG', '기타 TCG']
+        && (!('metadataAuthor' in data) || isStringBounded(data.metadataAuthor, 0, 100))
+        && (!('metadataSnippet' in data) || isStringBounded(data.metadataSnippet, 0, 300))
+        && (!('metadataImageUrl' in data) || isStringBounded(data.metadataImageUrl, 0, 500))
+        && (!('duplicateCandidateOf' in data) || isStringBounded(data.duplicateCandidateOf, 0, 128))
+        && (!('duplicateSimilarityNote' in data) || isStringBounded(data.duplicateSimilarityNote, 0, 300))
+        && (!('koreanTitle' in data) || isStringBounded(data.koreanTitle, 0, 160))
+        && (!('novaSummary' in data) || isStringBounded(data.novaSummary, 0, 3000))
+        && (!('coverImage' in data) || isStringBounded(data.coverImage, 0, 200000))
+        && (!('galleryImages' in data) || isValidNewsGalleryList(data.galleryImages))
+        && data.isPinned is bool
+        && data.status in ['pending', 'approved', 'ignored']
+        && (!('publishedPostId' in data) || isStringBounded(data.publishedPostId, 0, 128))
+        && (!('aiDraftGenerated' in data) || data.aiDraftGenerated is bool)
+        && (!('fetchedAt' in data) || data.fetchedAt == null || data.fetchedAt is timestamp)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidNewsSyncState(data) {
+      return data.keys().hasAll(['lastTrigger', 'lastNewCount', 'lastCheckedSources', 'lastErrorCount', 'lastErrors', 'updatedAt'])
+        && data.keys().hasOnly(['lastSyncedAt', 'lastTrigger', 'lastNewCount', 'lastCheckedSources', 'lastErrorCount', 'lastErrors', 'updatedAt'])
+        && (!('lastSyncedAt' in data) || data.lastSyncedAt == null || data.lastSyncedAt is timestamp)
+        && data.lastTrigger in ['cron', 'manual', 'server_interval']
+        && data.lastNewCount is number && data.lastNewCount >= 0
+        && data.lastCheckedSources is number && data.lastCheckedSources >= 0
+        && data.lastErrorCount is number && data.lastErrorCount >= 0
+        && data.lastErrors is list && data.lastErrors.size() <= 20
+        && (data.lastErrors.size() == 0 || (data.lastErrors[0] is string && data.lastErrors[0].size() <= 400))
         && data.updatedAt is timestamp;
     }
 
@@ -307,7 +402,7 @@ service cloud.firestore {
 
     // Products
     match /products/{productId} {
-      allow get: if isValidId(productId) && (existing().visibilityState == 'published' || isAdmin());
+      allow get: if isValidId(productId) && (isAdmin() || (resource != null && existing().visibilityState == 'published'));
       allow list: if resource.data.visibilityState == 'published' || isAdmin();
       allow create: if isValidId(productId)
         && isAdmin()
@@ -345,7 +440,7 @@ service cloud.firestore {
 
     // Posts / News
     match /posts/{postId} {
-      allow get: if isValidId(postId) && (existing().visibilityState == 'published' || isAdmin());
+      allow get: if isValidId(postId) && (isAdmin() || (resource != null && existing().visibilityState == 'published'));
       allow list: if resource.data.visibilityState == 'published' || isAdmin();
       allow create: if isValidId(postId)
         && isAdmin()
@@ -357,13 +452,13 @@ service cloud.firestore {
         && isValidPost(incoming())
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
-        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'slug', 'category', 'summary', 'content', 'coverImage', 'isPinned', 'isSample', 'scheduledAt', 'seoTitle', 'seoDescription', 'visibilityState', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'slug', 'category', 'summary', 'content', 'coverImage', 'galleryImages', 'tcgCategory', 'sourceName', 'sourceUrl', 'publishedAtSource', 'inboxItemId', 'isPinned', 'isSample', 'scheduledAt', 'seoTitle', 'seoDescription', 'visibilityState', 'updatedAt']);
       allow delete: if isValidId(postId) && isAdmin();
     }
 
     // Notices
     match /notices/{noticeId} {
-      allow get: if isValidId(noticeId) && (existing().visibilityState == 'published' || isAdmin());
+      allow get: if isValidId(noticeId) && (isAdmin() || (resource != null && existing().visibilityState == 'published'));
       allow list: if resource.data.visibilityState == 'published' || isAdmin();
       allow create: if isValidId(noticeId)
         && isAdmin()
@@ -381,7 +476,7 @@ service cloud.firestore {
 
     // Live & Events
     match /events/{eventId} {
-      allow get: if isValidId(eventId) && (existing().visibilityState == 'published' || isAdmin());
+      allow get: if isValidId(eventId) && (isAdmin() || (resource != null && existing().visibilityState == 'published'));
       allow list: if resource.data.visibilityState == 'published' || isAdmin();
       allow create: if isValidId(eventId)
         && isAdmin()
@@ -399,7 +494,7 @@ service cloud.firestore {
 
     // Sponsors & Partnerships
     match /sponsors/{sponsorId} {
-      allow get: if isValidId(sponsorId) && (existing().visibilityState == 'published' || isAdmin());
+      allow get: if isValidId(sponsorId) && (isAdmin() || (resource != null && existing().visibilityState == 'published'));
       allow list: if resource.data.visibilityState == 'published' || isAdmin();
       allow create: if isValidId(sponsorId)
         && isAdmin()
@@ -417,7 +512,7 @@ service cloud.firestore {
 
     // Reviews
     match /reviews/{reviewId} {
-      allow get: if isValidId(reviewId) && (existing().isApproved == true || isAdmin());
+      allow get: if isValidId(reviewId) && (isAdmin() || (resource != null && existing().isApproved == true));
       allow list: if resource.data.isApproved == true || isAdmin();
       allow create: if isValidId(reviewId)
         && isAdmin()
@@ -435,7 +530,7 @@ service cloud.firestore {
 
     // FAQs
     match /faqs/{faqId} {
-      allow get: if isValidId(faqId) && (existing().visibilityState == 'published' || isAdmin());
+      allow get: if isValidId(faqId) && (isAdmin() || (resource != null && existing().visibilityState == 'published'));
       allow list: if resource.data.visibilityState == 'published' || isAdmin();
       allow create: if isValidId(faqId)
         && isAdmin()
@@ -460,7 +555,7 @@ service cloud.firestore {
 
     // Retail Campaigns (Raffle / Drop groups)
     match /retail_campaigns/{campaignId} {
-      allow get: if isValidId(campaignId) && (existing().visibilityState == 'published' || isAdmin());
+      allow get: if isValidId(campaignId) && (isAdmin() || (resource != null && existing().visibilityState == 'published'));
       allow list: if resource.data.visibilityState == 'published' || isAdmin();
       allow create: if isValidId(campaignId)
         && isAdmin()
@@ -478,7 +573,7 @@ service cloud.firestore {
 
     // Retail Drops & Raffles
     match /retail_drops/{dropId} {
-      allow get: if isValidId(dropId) && (existing().visibilityState == 'published' || isAdmin());
+      allow get: if isValidId(dropId) && (isAdmin() || (resource != null && existing().visibilityState == 'published'));
       allow list: if resource.data.visibilityState == 'published' || isAdmin();
       allow create: if isValidId(dropId)
         && isAdmin()
@@ -492,6 +587,57 @@ service cloud.firestore {
         && incoming().updatedAt == request.time
         && incoming().diff(existing()).affectedKeys().hasOnly(['campaignId', 'title', 'tcg', 'country', 'retailer', 'saleType', 'price', 'currency', 'imageUrl', 'officialUrl', 'timezoneLabel', 'startAt', 'endAt', 'purchaseWindowText', 'conditions', 'manualStatus', 'verifiedAt', 'isPinned', 'isRecommended', 'archiveEnded', 'order', 'visibilityState', 'updatedAt']);
       allow delete: if isValidId(dropId) && isAdmin();
+    }
+
+    // External TCG News Sources (Admin-only)
+    match /news_sources/{sourceId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(sourceId)
+        && isAdmin()
+        && isValidNewsSource(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(sourceId)
+        && isAdmin()
+        && isValidNewsSource(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'siteUrl', 'feedUrl', 'sourceType', 'tcgCategory', 'enabled', 'isBuiltIn', 'lastCheckedAt', 'lastSuccessAt', 'lastStatus', 'lastError', 'lastFetchedCount', 'lastNewCount', 'updatedAt']);
+      allow delete: if isValidId(sourceId) && isAdmin();
+    }
+
+    // Unapproved TCG News Moderation Inbox (Strictly Admin-only, never public)
+    match /news_inbox/{itemId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(itemId)
+        && isAdmin()
+        && isValidNewsInboxItem(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(itemId)
+        && isAdmin()
+        && isValidNewsInboxItem(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['tcgCategory', 'koreanTitle', 'novaSummary', 'coverImage', 'galleryImages', 'isPinned', 'status', 'publishedPostId', 'aiDraftGenerated', 'duplicateCandidateOf', 'duplicateSimilarityNote', 'updatedAt']);
+      allow delete: if isValidId(itemId) && isAdmin();
+    }
+
+    // News Sync State Telemetry (Admin-only)
+    match /news_sync_state/{stateId} {
+      allow get, list: if isAdmin();
+      allow create: if isValidId(stateId)
+        && stateId == 'global'
+        && isAdmin()
+        && isValidNewsSyncState(incoming())
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(stateId)
+        && stateId == 'global'
+        && isAdmin()
+        && isValidNewsSyncState(incoming())
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['lastSyncedAt', 'lastTrigger', 'lastNewCount', 'lastCheckedSources', 'lastErrorCount', 'lastErrors', 'updatedAt']);
+      allow delete: if false;
     }
   }
 }

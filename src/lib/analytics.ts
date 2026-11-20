@@ -1,5 +1,5 @@
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, isFirestoreQuotaError } from './firebase';
 import { generateSafeId, getKSTDateKey } from './utils';
 
 export type AnalyticsEventType =
@@ -9,6 +9,8 @@ export type AnalyticsEventType =
   | 'action_click'
   | 'dm_click'
   | 'email_click';
+
+let quotaPausedUntil = 0;
 
 export async function trackAnalyticsEvent(
   eventType: AnalyticsEventType,
@@ -20,9 +22,17 @@ export async function trackAnalyticsEvent(
   }
 ): Promise<void> {
   try {
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
-      return;
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname.startsWith('/admin')) return;
+      if (Date.now() < quotaPausedUntil) return;
+
+      if (eventType === 'page_view') {
+        const cleanKey = `nova_pv_${(path || '/').slice(0, 120)}`;
+        if (window.sessionStorage.getItem(cleanKey)) return;
+        window.sessionStorage.setItem(cleanKey, '1');
+      }
     }
+
     const id = generateSafeId('ev');
     const cleanPath = (path || '/').slice(0, 120);
     await setDoc(doc(db, 'analytics_events', id), {
@@ -34,7 +44,10 @@ export async function trackAnalyticsEvent(
       dateKey: getKSTDateKey(),
       createdAt: serverTimestamp(),
     });
-  } catch {
+  } catch (err) {
+    if (isFirestoreQuotaError(err)) {
+      quotaPausedUntil = Date.now() + 10 * 60 * 1000;
+    }
     // Analytics must never interrupt visitor browsing
   }
 }

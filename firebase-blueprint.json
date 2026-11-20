@@ -89,7 +89,29 @@
         "category": { "type": "string", "maxLength": 50 },
         "summary": { "type": "string", "maxLength": 400 },
         "content": { "type": "string", "maxLength": 30000 },
-        "coverImage": { "type": "string", "maxLength": 600 },
+        "coverImage": { "type": "string", "maxLength": 200000 },
+        "galleryImages": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+              "url": { "type": "string", "minLength": 1, "maxLength": 200000 },
+              "caption": { "type": "string", "maxLength": 300 },
+              "source": { "type": "string", "maxLength": 140 },
+              "rights": { "type": "string", "maxLength": 100 },
+              "rightsNote": { "type": "string", "maxLength": 200 },
+              "alt": { "type": "string", "maxLength": 200 }
+            },
+            "required": ["id", "url"]
+          }
+        },
+        "tcgCategory": { "type": "string", "maxLength": 40 },
+        "sourceName": { "type": "string", "maxLength": 100 },
+        "sourceUrl": { "type": "string", "maxLength": 500 },
+        "publishedAtSource": { "type": "string", "maxLength": 80 },
+        "inboxItemId": { "type": "string", "maxLength": 128 },
         "isPinned": { "type": "boolean" },
         "isSample": { "type": "boolean" },
         "scheduledAt": { "type": "string", "format": "date-time" },
@@ -261,6 +283,91 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "tcg", "country", "retailer", "saleType", "price", "currency", "officialUrl", "manualStatus", "isPinned", "isRecommended", "archiveEnded", "order", "visibilityState", "createdAt", "updatedAt"]
+    },
+    "NewsSource": {
+      "title": "NewsSource",
+      "description": "Configured external TCG news source (RSS, Atom, JSON Feed, or official reference).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "siteUrl": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "feedUrl": { "type": "string", "maxLength": 500 },
+        "sourceType": { "type": "string", "enum": ["rss", "atom", "json", "manual_only"] },
+        "tcgCategory": { "type": "string", "enum": ["포켓몬 TCG", "원피스 TCG", "기타 TCG"] },
+        "enabled": { "type": "boolean" },
+        "isBuiltIn": { "type": "boolean" },
+        "lastCheckedAt": { "type": "string", "format": "date-time" },
+        "lastSuccessAt": { "type": "string", "format": "date-time" },
+        "lastStatus": { "type": "string", "enum": ["ok", "error", "no_public_feed", "idle"] },
+        "lastError": { "type": "string", "maxLength": 500 },
+        "lastFetchedCount": { "type": "number" },
+        "lastNewCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "siteUrl", "sourceType", "tcgCategory", "enabled", "isBuiltIn", "lastStatus", "createdAt", "updatedAt"]
+    },
+    "NewsInboxItem": {
+      "title": "NewsInboxItem",
+      "description": "Private admin moderation queue item fetched from external TCG news metadata.",
+      "type": "object",
+      "properties": {
+        "sourceId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "sourceName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "originalTitle": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "originalUrl": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "canonicalUrlKey": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "publishedAtSource": { "type": "string", "maxLength": 80 },
+        "tcgCategory": { "type": "string", "enum": ["포켓몬 TCG", "원피스 TCG", "기타 TCG"] },
+        "metadataAuthor": { "type": "string", "maxLength": 100 },
+        "metadataSnippet": { "type": "string", "maxLength": 300 },
+        "metadataImageUrl": { "type": "string", "maxLength": 500 },
+        "duplicateCandidateOf": { "type": "string", "maxLength": 128 },
+        "duplicateSimilarityNote": { "type": "string", "maxLength": 300 },
+        "koreanTitle": { "type": "string", "maxLength": 160 },
+        "novaSummary": { "type": "string", "maxLength": 3000 },
+        "coverImage": { "type": "string", "maxLength": 200000 },
+        "galleryImages": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+              "url": { "type": "string", "minLength": 1, "maxLength": 200000 },
+              "caption": { "type": "string", "maxLength": 300 },
+              "source": { "type": "string", "maxLength": 140 },
+              "rights": { "type": "string", "maxLength": 100 },
+              "rightsNote": { "type": "string", "maxLength": 200 },
+              "alt": { "type": "string", "maxLength": 200 }
+            },
+            "required": ["id", "url"]
+          }
+        },
+        "isPinned": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["pending", "approved", "ignored"] },
+        "publishedPostId": { "type": "string", "maxLength": 128 },
+        "aiDraftGenerated": { "type": "boolean" },
+        "fetchedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sourceId", "sourceName", "originalTitle", "originalUrl", "canonicalUrlKey", "tcgCategory", "isPinned", "status", "createdAt", "updatedAt"]
+    },
+    "NewsSyncState": {
+      "title": "NewsSyncState",
+      "description": "Global status of automated and manual TCG news collection runs.",
+      "type": "object",
+      "properties": {
+        "lastSyncedAt": { "type": "string", "format": "date-time" },
+        "lastTrigger": { "type": "string", "enum": ["cron", "manual", "server_interval"] },
+        "lastNewCount": { "type": "number" },
+        "lastCheckedSources": { "type": "number" },
+        "lastErrorCount": { "type": "number" },
+        "lastErrors": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["lastTrigger", "lastNewCount", "lastCheckedSources", "lastErrorCount", "lastErrors", "updatedAt"]
     }
   },
   "firestore": {
@@ -315,6 +422,18 @@
     "/retail_drops/{dropId}": {
       "schema": { "$ref": "#/entities/RetailDrop" },
       "description": "Individual TCG retail price drops and raffle products."
+    },
+    "/news_sources/{sourceId}": {
+      "schema": { "$ref": "#/entities/NewsSource" },
+      "description": "Admin-managed TCG news feed sources."
+    },
+    "/news_inbox/{itemId}": {
+      "schema": { "$ref": "#/entities/NewsInboxItem" },
+      "description": "Admin-only unapproved TCG news moderation inbox."
+    },
+    "/news_sync_state/{stateId}": {
+      "schema": { "$ref": "#/entities/NewsSyncState" },
+      "description": "Admin-only news sync telemetry state."
     }
   }
 }

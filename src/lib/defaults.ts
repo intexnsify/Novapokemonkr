@@ -1,7 +1,9 @@
 import {
   EventItem,
   FaqItem,
+  HeroSlide,
   Notice,
+  OripaItem,
   Post,
   Product,
   RetailCampaign,
@@ -12,24 +14,98 @@ import {
 } from '../types/nova';
 
 export const LEGACY_DEFAULT_LOGO = '/src/assets/images/nova_emblem_logo_1794892739828.jpg';
+export const LEGACY_BUYBACK_HERO = '/src/assets/images/hero_nova_obsidian_1794892740287.jpg';
 
 export const ASSET_IMAGES = {
   logo: '/assets/aistudio/IMG_5596_2ce1846d.jpeg',
-  hero: '/src/assets/images/hero_nova_obsidian_1794892740287.jpg',
+  hero: '/src/assets/images/nova_emblem_logo_1794892739828.jpg',
+  buybackGuide: '/src/assets/images/hero_nova_obsidian_1794892740287.jpg',
   gradedSlab: '/src/assets/images/sample_graded_slab_1794892741867.jpg',
   sealedBox: '/src/assets/images/sample_sealed_box_1794892741387.jpg',
   newsEditorial: '/src/assets/images/sample_news_editorial_1794892741353.jpg',
 };
 
+export const DEFAULT_HERO_SLIDES: HeroSlide[] = [
+  {
+    id: 'slide_nova_store',
+    badge: 'NOVA CURATED STORE',
+    title: '검수된 등급카드 & 컬렉션 박스 아카이브',
+    subtitle: 'PSA·BGS 슬랩과 미개봉 컬렉터 박스를 실물 확인 후 안전하게 만나보세요.',
+    ctaLabel: '스토어 바로가기',
+    ctaUrl: '/shop',
+    desktopImageUrl: ASSET_IMAGES.hero,
+    mobileImageUrl: ASSET_IMAGES.hero,
+    accentTheme: 'dark',
+    order: 0,
+    visible: true,
+  },
+  {
+    id: 'slide_nova_drops',
+    badge: 'OFFICIAL DROPS & RAFFLES',
+    title: '국내외 포켓몬·원피스 정가 구매 및 추첨 허브',
+    subtitle: '한국·일본·미국 공식 판매처 일정과 응모 조건을 실시간으로 확인하세요.',
+    ctaLabel: '정가·추첨 보기',
+    ctaUrl: '/drops',
+    desktopImageUrl: ASSET_IMAGES.sealedBox,
+    mobileImageUrl: ASSET_IMAGES.sealedBox,
+    accentTheme: 'dark',
+    order: 1,
+    visible: true,
+  },
+  {
+    id: 'slide_nova_editorial',
+    badge: 'GLOBAL TCG NEWS',
+    title: '글로벌 TCG 최신 소식과 컬렉터 브리핑',
+    subtitle: '국내외 공식 발표와 확장팩 리포트를 원문 출처와 함께 빠르게 전합니다.',
+    ctaLabel: '최신 뉴스 읽기',
+    ctaUrl: '/news',
+    desktopImageUrl: ASSET_IMAGES.newsEditorial,
+    mobileImageUrl: ASSET_IMAGES.newsEditorial,
+    accentTheme: 'dark',
+    order: 2,
+    visible: true,
+  },
+];
+
+export const DEFAULT_ORIPA_ITEMS: OripaItem[] = [
+  {
+    id: 'oripa_nova_prelaunch_01',
+    title: 'NOVA LIVE ORIPA · 포켓몬 하이엔드 컬렉션 VOL.1 (출시 준비 중)',
+    subtitle: '유튜브 라이브 실시간 개봉 및 미개봉 배송 선택형 오리파',
+    description:
+      '향후 정식 오픈 예정인 NOVA 오리파(ORIPA) 사전 체험 페이지입니다. 현재는 법적 검토 및 PG/결제 심사 완료 전까지 실제 구매 및 결제 기능이 비활성화되어 있으며, 번호 선택 UI와 진행 구조를 미리 확인하실 수 있습니다.',
+    pricePerSlot: 30000,
+    totalSlots: 50,
+    imageUrl: ASSET_IMAGES.gradedSlab,
+    youtubeChannelUrl: '',
+    youtubeLiveUrl: '',
+    liveScheduleText: '정식 오픈 일정 추후 공지 (유튜브 라이브 연동 예정)',
+    fulfillmentMode: 'live_or_ship',
+    scheduleMode: 'scheduled',
+    visible: true,
+    purchasingDisabled: true,
+    slotStatuses: {
+      '1': 'available',
+      '7': 'reserved',
+      '12': 'sold',
+      '25': 'sold',
+    },
+    policyNote:
+      '※ 현재 출시 준비 중인 기능으로 실제 결제·주문·예약 확정은 진행되지 않습니다. 정식 오픈 시 공정성 기준, 확률·구성 고지 및 환불 정책이 함께 제공됩니다.',
+    adminMemo: '기본 사전 준비 템플릿 (결제 심사 및 법적 검토 완료 후 관리자에서 오픈 설정)',
+    order: 0,
+  },
+];
+
 export const DEFAULT_THEME = {
-  mainBg: '#080A0D',
-  secondaryBg: '#11151A',
-  cardBg: '#171C23',
-  silver: '#C5CBD3',
-  primaryText: '#F3F4F6',
-  secondaryText: '#929AA6',
-  border: '#303741',
-  accent: '#8068BA',
+  mainBg: '#FFFFFF',
+  secondaryBg: '#F5F6F8',
+  cardBg: '#FFFFFF',
+  silver: '#111827',
+  primaryText: '#111827',
+  secondaryText: '#667085',
+  border: '#E5E7EB',
+  accent: '#465C77',
   fontScale: 'md' as const,
   buttonShape: 'rounded' as const,
   sectionSpacing: 'normal' as const,
@@ -39,12 +115,13 @@ export const DEFAULT_THEME = {
 export const DEFAULT_SITE_CONFIG: SiteConfig = {
   brand: {
     name: 'NOVA',
-    tagline: 'POKÉMON TCG · COLLECTION · COMMUNITY',
+    tagline: 'POKÉMON TCG · STORE · MEDIA',
     headline: '카드를 모으는 즐거움, NOVA와 함께.',
     description:
-      '포켓몬카드 정가 구매·추첨 정보와 전 세계 TCG 최신 뉴스, 공식 파트너십 소식 및 엄선된 컬렉션을 한곳에서 전하는 프리미엄 TCG 미디어 플랫폼입니다.',
+      '엄선된 등급카드·싱글카드 온라인 스토어부터 국내외 포켓몬카드 정가 구매·추첨 정보, 글로벌 TCG 최신 뉴스와 브랜드 파트너십까지 한곳에서 만나는 TCG 플랫폼입니다.',
     logoUrl: ASSET_IMAGES.logo,
     heroImageUrl: ASSET_IMAGES.hero,
+    heroSlides: DEFAULT_HERO_SLIDES,
     instagramUrl: 'https://www.instagram.com/novapokemonkr/',
     tiktokUrl: '',
     youtubeUrl: '',
@@ -55,8 +132,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     {
       id: 'action_shop',
       title: '카드 구매하기',
-      subtitle: '큐레이션된 등급 카드 · 싱글 · 미개봉 박스 카탈로그',
-      ctaLabel: '카탈로그 보기',
+      subtitle: '검수된 PSA/BGS 등급 카드 · 싱글카드 · 미개봉 박스 스토어',
+      ctaLabel: '스토어 바로가기',
       url: '/shop',
       visible: true,
       order: 0,
@@ -64,25 +141,26 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     {
       id: 'action_sell',
       title: '카드 매입 신청',
-      subtitle: '사진 첨부로 간편하게 접수하는 비공개 매입 견적',
-      ctaLabel: '매입 접수하기',
+      subtitle: '사진 첨부 및 시세 가이드 확인 후 1:1 비공개 매입 접수',
+      ctaLabel: '매입 안내 · 신청하기',
       url: '/sell',
       visible: true,
       order: 1,
     },
   ],
   homeSections: [
-    { id: 'retail_raffle', label: '정가 구매·추첨 정보', visible: true, order: 0, limit: 4 },
-    { id: 'news', label: 'TCG 최신 뉴스', visible: true, order: 1, limit: 4 },
-    { id: 'sponsors', label: '공식 협찬 및 파트너십', visible: true, order: 2, limit: 4 },
-    { id: 'actions', label: '카드 구매·매입', visible: true, order: 3, limit: 2 },
-    { id: 'featured_products', label: '큐레이션 컬렉션', visible: true, order: 4, limit: 4 },
-    { id: 'events', label: '라이브 & 이벤트', visible: true, order: 5, limit: 3 },
-    { id: 'community', label: 'NOVA 커뮤니티', visible: true, order: 6, limit: 6 },
-    { id: 'reviews', label: '컬렉터 후기', visible: true, order: 7, limit: 3 },
-    { id: 'faq', label: '자주 묻는 질문', visible: true, order: 8, limit: 8 },
-    { id: 'work_with_nova', label: '협찬 및 광고 문의', visible: true, order: 9, limit: 1 },
-    { id: 'notices', label: '공지사항', visible: true, order: 10, limit: 3 },
+    { id: 'news', label: 'TCG 최신 뉴스', visible: true, order: 0, limit: 4 },
+    { id: 'featured_products', label: 'NOVA 마켓 (싱글 · 박스)', visible: true, order: 1, limit: 8 },
+    { id: 'retail_raffle', label: '정가 구매 · 추첨 정보', visible: true, order: 2, limit: 4 },
+    { id: 'oripa_live', label: 'ORIPA / LIVE OPENING', visible: true, order: 3, limit: 1 },
+    { id: 'actions', label: '카드 구매 · 매입 안내', visible: true, order: 4, limit: 2 },
+    { id: 'sponsors', label: '공식 파트너십', visible: true, order: 5, limit: 4 },
+    { id: 'events', label: '라이브 & 이벤트', visible: true, order: 6, limit: 3 },
+    { id: 'community', label: 'NOVA 커뮤니티', visible: true, order: 7, limit: 6 },
+    { id: 'reviews', label: '컬렉터 후기', visible: true, order: 8, limit: 3 },
+    { id: 'faq', label: '자주 묻는 질문', visible: true, order: 9, limit: 8 },
+    { id: 'work_with_nova', label: '협찬 및 광고 문의', visible: true, order: 10, limit: 1 },
+    { id: 'notices', label: '공지사항', visible: true, order: 11, limit: 3 },
   ],
   communityLinks: [
     {
@@ -114,9 +192,9 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
     },
   ],
   seo: {
-    siteTitle: 'NOVA — Pokémon TCG Collection & Community',
+    siteTitle: 'NOVA — Pokémon TCG Collection & Store',
     metaDescription:
-      '카드를 모으는 즐거움, NOVA와 함께. 프리미엄 Pokémon TCG 싱글·등급 카드, 미개봉 박스 카탈로그, 카드 매입 신청, TCG 뉴스 및 커뮤니티.',
+      '카드를 모으는 즐거움, NOVA와 함께. 프리미엄 Pokémon TCG 싱글·등급 카드, 미개봉 박스 스토어, 카드 매입 신청, TCG 뉴스 및 커뮤니티.',
     ogImageUrl: ASSET_IMAGES.hero,
     twitterCard: 'summary_large_image',
     keywords: 'NOVA, 포켓몬 카드, Pokémon TCG, 등급카드, PSA, BGS, 카드 매입, REPACK',
@@ -129,9 +207,9 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
 2. 이용 목적: 매입 검토, 견적 제안, 문의 회신 및 거래 진행
 3. 보관 및 열람 제한: 매입 신청 정보 및 사진은 일반 방문자에게 절대 공개되지 않으며, 인증된 관리자만 비공개로 열람합니다.
 4. 파기 요청: Jwkim9633@gmail.com 으로 연락 주시면 확인 후 지체 없이 파기합니다.`,
-    termsOfUse: `1. NOVA 웹사이트에 게시된 모든 상품은 현재 Instagram DM(@novapokemonkr)을 통한 1:1 확인 및 상담 후 거래가 진행됩니다.
+    termsOfUse: `1. NOVA 웹사이트에 게시된 모든 상품은 현재 장바구니/문의 요약 작성 후 Instagram DM(@novapokemonkr)을 통한 1:1 확인 및 상담으로 거래가 진행됩니다.
 2. 실시간 재고 변동에 따라 카탈로그 상태가 '예약중' 또는 '판매완료'로 변경될 수 있습니다.
-3. 협찬 및 파트너십 게시물은 '협찬' 표기를 통해 명확히 구분하여 안내합니다.`,
+3. 협찬 및 파트너십 게시물은 '협찬 / Sponsored' 표기를 통해 명확히 구분하여 안내합니다.`,
     shippingRefundPolicy: `1. 배송 안내: 모든 등급 카드 및 싱글 카드는 슬리브·탑로더·완충재를 적용해 안전하게 포장 후 발송됩니다.
 2. 발송 일정: 입금 및 거래 확정 후 영업일 기준 1~2일 이내 발송되며 송장 번호를 DM으로 안내해 드립니다.
 3. 환불 및 교환: 수집용 TCG 카드 특성상 개봉·훼손 또는 단순 변심에 의한 교환·환불은 어려우며, 배송 중 파손 또는 오배송 시 수령 직후 개봉 영상과 함께 문의해 주세요.`,
@@ -146,6 +224,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   },
   eventsSettings: {
     hideEndedEventsGlobally: false,
+    sponsorMeta: {},
+    oripaItems: DEFAULT_ORIPA_ITEMS,
   },
 };
 
@@ -169,7 +249,7 @@ export const INITIAL_FAQS_SEED: Omit<FaqItem, 'createdAt' | 'updatedAt'>[] = [
     id: 'faq_buyback',
     question: '카드 매입 문의는 어떻게 진행되나요?',
     answer:
-      '상단 메뉴 또는 메인 화면의 [카드 매입 신청] 페이지에서 카드 이름, 언어, 상태/등급, 희망 매입가, 사진(최대 4장)을 첨부해 접수해 주세요. 제출된 정보는 비공개로 안전하게 저장되며 관리자 검토 후 안내해 드립니다.',
+      '상단 메뉴의 [매입 문의] 또는 스토어 내 [카드 매입 신청] 페이지에서 매입 기준표와 카드 이름, 언어, 상태/등급, 희망 매입가, 사진(최대 4장)을 첨부해 접수해 주세요. 제출된 정보는 비공개로 안전하게 저장되며 관리자 검토 후 안내해 드립니다.',
     order: 0,
     visibilityState: 'published',
   },
@@ -177,7 +257,7 @@ export const INITIAL_FAQS_SEED: Omit<FaqItem, 'createdAt' | 'updatedAt'>[] = [
     id: 'faq_purchase',
     question: '판매 중인 카드는 어디서 확인하고 구매하나요?',
     answer:
-      '[카드 구매하기] 카탈로그에서 싱글카드, 등급카드, 미개봉 박스 등 카테고리와 가격순 정렬로 상품을 확인하실 수 있습니다. 현재 결제는 지원하지 않으며 각 상품 상세 페이지의 Instagram DM 문의를 통해 실물 확인 및 구매를 진행합니다.',
+      '[SHOP] 카탈로그에서 싱글카드, 등급카드, 미개봉 박스 등 카테고리별 상품과 상세 스펙을 확인하실 수 있습니다. 관심 상품을 장바구니에 담은 뒤 Instagram DM 문의 요약을 복사해 보내시면 실물 사진 확인 및 구매를 안내해 드립니다.',
     order: 1,
     visibilityState: 'published',
   },
@@ -243,9 +323,9 @@ export const INITIAL_SAMPLE_PRODUCTS: Omit<Product, 'createdAt' | 'updatedAt'>[]
 export const INITIAL_SAMPLE_NOTICES: Omit<Notice, 'createdAt' | 'updatedAt'>[] = [
   {
     id: 'sample_notice_01',
-    title: 'NOVA 공식 웹사이트 및 매입 접수 시스템 오픈 안내',
+    title: 'NOVA 공식 스토어 및 비공개 매입 접수 시스템 오픈 안내',
     content:
-      'NOVA의 공식 카탈로그 및 비공개 카드 매입 접수 시스템이 새롭게 오픈했습니다. 상품 구매는 Instagram DM(@novapokemonkr)을 통해 안전하게 안내해 드립니다.',
+      'NOVA의 공식 카탈로그 및 비공개 카드 매입 접수 시스템이 새롭게 오픈했습니다. 상품 구매는 장바구니 문의 요약 또는 Instagram DM(@novapokemonkr)을 통해 안전하게 안내해 드립니다.',
     isPinned: true,
     isSample: true,
     visibilityState: 'published',

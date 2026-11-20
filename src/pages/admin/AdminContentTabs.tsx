@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
   doc,
@@ -15,13 +15,20 @@ import {
   Eye,
   GripVertical,
   ImagePlus,
+  Pause,
   Pin,
+  Play,
   Plus,
   Trash2,
   Upload,
 } from 'lucide-react';
-import { db, handleFirestoreError, OperationType } from '../../lib/firebase';
-import { uploadPublicMedia } from '../../lib/storage';
+import { db, explainFirestoreError, handleFirestoreError, OperationType } from '../../lib/firebase';
+import {
+  uploadDropImageWithFallback,
+  uploadPostImageWithFallback,
+  uploadPublicMedia,
+} from '../../lib/storage';
+import { buildArticleSegments, sanitizeGalleryImages } from '../../lib/newsImages';
 import {
   formatKRW,
   formatKST,
@@ -37,6 +44,7 @@ import {
   BuybackStatus,
   EventItem,
   FaqItem,
+  NewsTcgCategory,
   Notice,
   Post,
   Product,
@@ -44,9 +52,12 @@ import {
   ProductStatus,
   Review,
   Sponsor,
+  SponsorExtendedMeta,
+  SponsorPlacement,
   VisibilityState,
 } from '../../types/nova';
 import { SafeImage } from '../../components/SafeImage';
+import { NewsGalleryEditor } from '../../components/admin/NewsGalleryEditor';
 import { useAdmin } from './AdminContext';
 
 /* ============================================================================
@@ -716,7 +727,7 @@ export const BuybacksTab: React.FC = () => {
    8. 게시글/뉴스 관리 (마크다운 + 이미지 삽입 + 미리보기 + 예약 + SEO)
 ============================================================================ */
 export const PostsTab: React.FC = () => {
-  const { posts, showToast } = useAdmin();
+  const { user, posts, showToast } = useAdmin();
   const activePosts = posts.filter((p) => p.visibilityState !== 'trashed');
 
   const [editing, setEditing] = useState<Partial<Post> | null>(null);
@@ -724,10 +735,14 @@ export const PostsTab: React.FC = () => {
   const [previewMode, setPreviewMode] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const contentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const openEditor = (p?: Post) => {
     if (p) {
-      setEditing(p);
+      setEditing({
+        ...p,
+        galleryImages: sanitizeGalleryImages(p.galleryImages),
+      });
       setScheduledLocal(toKSTDatetimeLocalInput(p.scheduledAt));
     } else {
       setEditing({
@@ -735,9 +750,15 @@ export const PostsTab: React.FC = () => {
         title: '',
         slug: '',
         category: 'TCG 뉴스',
+        tcgCategory: '',
+        sourceName: '',
+        sourceUrl: '',
+        publishedAtSource: '',
+        inboxItemId: '',
         summary: '',
         content: '',
         coverImage: '',
+        galleryImages: [],
         isPinned: false,
         isSample: false,
         seoTitle: '',
@@ -749,13 +770,59 @@ export const PostsTab: React.FC = () => {
     setPreviewMode(false);
   };
 
+  const insertMarkerIntoContent = (marker: string, afterParagraphIndex?: number) => {
+    const el = contentTextareaRef.current;
+    const cursorStart = el && !previewMode ? el.selectionStart : undefined;
+    const cursorEnd = el && !previewMode ? el.selectionEnd : undefined;
+
+    setEditing((prev) => {
+      if (!prev) return prev;
+      const currentText = prev.content || '';
+      if (typeof afterParagraphIndex === 'number') {
+        const blocks = currentText.split(/\n{2,}/);
+        if (blocks.length === 0 || (blocks.length === 1 && !blocks[0].trim())) {
+          return { ...prev, content: `${marker}\n` };
+        }
+        const idx = Math.max(0, Math.min(afterParagraphIndex, blocks.length - 1));
+        const nextBlocks = [...blocks.slice(0, idx + 1), marker, ...blocks.slice(idx + 1)];
+        return { ...prev, content: nextBlocks.join('\n\n').slice(0, 30000) };
+      }
+
+      if (cursorStart === undefined || cursorEnd === undefined) {
+        return {
+          ...prev,
+          content: currentText ? `${currentText}\n\n${marker}\n` : `${marker}\n`,
+        };
+      }
+
+      const prefix = currentText.slice(0, cursorStart);
+      const suffix = currentText.slice(cursorEnd);
+      const insertBlock = `${prefix && !prefix.endsWith('\n') ? '\n\n' : ''}${marker}${
+        suffix && !suffix.startsWith('\n') ? '\n\n' : '\n'
+      }`;
+      return {
+        ...prev,
+        content: `${prefix}${insertBlock}${suffix}`.slice(0, 30000),
+      };
+    });
+    showToast(
+      typeof afterParagraphIndex === 'number'
+        ? `${afterParagraphIndex + 1}번째 문단 아래에 이미지가 삽입되었습니다.`
+        : '본문에 이미지가 삽입되었습니다.'
+    );
+  };
+
   const handleUploadCover = async (file?: File) => {
-    if (!file || !editing) return;
+    if (!file) return;
     setUploading(true);
     try {
-      const url = await uploadPublicMedia('posts', file);
-      setEditing({ ...editing, coverImage: url });
-      showToast('대표 이미지가 업로드되었습니다.');
+      const res = await uploadPostImageWithFallback(file);
+      setEditing((prev) => (prev ? { ...prev, coverImage: res.url } : prev));
+      showToast(
+        res.mode === 'storage'
+          ? '대표 이미지가 업로드되었습니다.'
+          : '대표 이미지가 최적화되어 등록되었습니다.'
+      );
     } catch (err) {
       showToast(`업로드 오류: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -764,15 +831,11 @@ export const PostsTab: React.FC = () => {
   };
 
   const handleInsertInlineImage = async (file?: File) => {
-    if (!file || !editing) return;
+    if (!file) return;
     setUploading(true);
     try {
-      const url = await uploadPublicMedia('posts', file);
-      setEditing({
-        ...editing,
-        content: `${editing.content || ''}\n\n![이미지 설명](${url})\n`,
-      });
-      showToast('본문에 이미지 마크다운이 삽입되었습니다.');
+      const res = await uploadPostImageWithFallback(file);
+      insertMarkerIntoContent(`![이미지 설명](${res.url})`);
     } catch (err) {
       showToast(`업로드 오류: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -790,11 +853,17 @@ export const PostsTab: React.FC = () => {
     try {
       const payload = {
         title: editing.title.trim().slice(0, 160),
-        slug: sanitizeSlug(editing.slug || editing.title),
+        slug: sanitizeSlug(editing.slug || editing.title).slice(0, 128),
         category: (editing.category || 'TCG 뉴스').trim().slice(0, 50),
+        tcgCategory: (editing.tcgCategory || '').trim().slice(0, 40),
+        sourceName: (editing.sourceName || '').trim().slice(0, 100),
+        sourceUrl: (editing.sourceUrl || '').trim().slice(0, 500),
+        publishedAtSource: (editing.publishedAtSource || '').trim().slice(0, 80),
+        inboxItemId: (editing.inboxItemId || '').trim().slice(0, 128),
         summary: (editing.summary || '').trim().slice(0, 400),
         content: editing.content.slice(0, 30000),
-        coverImage: (editing.coverImage || '').trim().slice(0, 600),
+        coverImage: (editing.coverImage || '').trim().slice(0, 200000),
+        galleryImages: sanitizeGalleryImages(editing.galleryImages),
         isPinned: Boolean(editing.isPinned),
         isSample: Boolean(editing.isSample),
         scheduledAt: schedDate ? Timestamp.fromDate(schedDate) : null,
@@ -811,7 +880,8 @@ export const PostsTab: React.FC = () => {
       setEditing(null);
       showToast('게시글이 저장되었습니다.');
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `posts/${id}`);
+      const explained = explainFirestoreError(err);
+      showToast(`게시글 저장 실패 · ${explained.title}: ${explained.detail}`);
     } finally {
       setSaving(false);
     }
@@ -926,6 +996,32 @@ export const PostsTab: React.FC = () => {
               onChange={(e) => setEditing({ ...editing, summary: e.target.value })}
               className="sm:col-span-2 lg:col-span-3 min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             />
+            <select
+              value={editing.tcgCategory || ''}
+              onChange={(e) =>
+                setEditing({ ...editing, tcgCategory: e.target.value as NewsTcgCategory | '' })
+              }
+              className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+            >
+              <option value="">TCG 분류 (선택)</option>
+              <option value="포켓몬 TCG">포켓몬 TCG</option>
+              <option value="원피스 TCG">원피스 TCG</option>
+              <option value="기타 TCG">기타 TCG</option>
+            </select>
+            <input
+              type="text"
+              placeholder="원문 출처 이름 (예: PokeBeach)"
+              value={editing.sourceName || ''}
+              onChange={(e) => setEditing({ ...editing, sourceName: e.target.value })}
+              className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+            />
+            <input
+              type="url"
+              placeholder="원문 URL (https://...)"
+              value={editing.sourceUrl || ''}
+              onChange={(e) => setEditing({ ...editing, sourceUrl: e.target.value })}
+              className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+            />
             <div className="sm:col-span-2 flex gap-2">
               <input
                 type="text"
@@ -940,7 +1036,11 @@ export const PostsTab: React.FC = () => {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleUploadCover(e.target.files?.[0])}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.currentTarget.value = '';
+                    handleUploadCover(f);
+                  }}
                   className="sr-only"
                 />
               </label>
@@ -974,27 +1074,115 @@ export const PostsTab: React.FC = () => {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => handleInsertInlineImage(e.target.files?.[0])}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.currentTarget.value = '';
+                    handleInsertInlineImage(f);
+                  }}
                   className="sr-only"
                 />
               </label>
             </div>
 
             {previewMode ? (
-              <div className="min-h-[240px] p-5 border border-[#303741] rounded bg-[#080A0D] text-sm text-[#F3F4F6] space-y-3 [&_h2]:text-lg [&_h2]:font-semibold [&_ul]:list-disc [&_ul]:pl-5">
-                <ReactMarkdown>{editing.content || ''}</ReactMarkdown>
+              <div className="min-h-[240px] p-5 border border-[#303741] rounded bg-[#080A0D] text-sm text-[#F3F4F6] space-y-4 [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:text-base [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5">
+                {buildArticleSegments(editing.content || '', editing.galleryImages || []).map(
+                  (seg, segIdx) => {
+                    if (seg.type === 'markdown') {
+                      return <ReactMarkdown key={segIdx}>{seg.text}</ReactMarkdown>;
+                    }
+                    if (seg.type === 'image') {
+                      return (
+                        <figure
+                          key={`${seg.image.id}-${segIdx}`}
+                          className="rounded-lg border border-[#303741] bg-[#11151A] overflow-hidden"
+                        >
+                          <div className="p-2 flex justify-center bg-[#080A0D]">
+                            <SafeImage
+                              src={seg.image.url}
+                              alt={seg.image.caption || `이미지 ${seg.orderIndex + 1}`}
+                              className="max-w-full max-h-[360px] w-auto h-auto object-contain rounded"
+                            />
+                          </div>
+                          {(seg.image.caption || seg.image.source || seg.image.rights) && (
+                            <figcaption className="px-3 py-2 text-xs text-[#929AA6] border-t border-[#303741]/60 space-y-0.5">
+                              {seg.image.caption && (
+                                <p className="text-[#F3F4F6]">{seg.image.caption}</p>
+                              )}
+                              <p className="text-[11px]">
+                                {[
+                                  seg.image.source ? `출처: ${seg.image.source}` : '',
+                                  seg.image.rights ? `권한: ${seg.image.rights}` : '',
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                              </p>
+                            </figcaption>
+                          )}
+                        </figure>
+                      );
+                    }
+                    return (
+                      <div key={`grp-${segIdx}`} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {seg.images.map(({ image, orderIndex }) => (
+                          <figure
+                            key={image.id}
+                            className="rounded-lg border border-[#303741] bg-[#11151A] overflow-hidden"
+                          >
+                            <div className="p-2 flex justify-center bg-[#080A0D]">
+                              <SafeImage
+                                src={image.url}
+                                alt={image.caption || `이미지 ${orderIndex + 1}`}
+                                className="max-w-full max-h-[260px] w-auto h-auto object-contain rounded"
+                              />
+                            </div>
+                            {(image.caption || image.source || image.rights) && (
+                              <figcaption className="px-3 py-2 text-[11px] text-[#929AA6] border-t border-[#303741]/60">
+                                {image.caption && (
+                                  <p className="text-xs text-[#F3F4F6]">{image.caption}</p>
+                                )}
+                                {[
+                                  image.source ? `출처: ${image.source}` : '',
+                                  image.rights ? `권한: ${image.rights}` : '',
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')}
+                              </figcaption>
+                            )}
+                          </figure>
+                        ))}
+                      </div>
+                    );
+                  }
+                )}
               </div>
             ) : (
               <textarea
+                ref={contentTextareaRef}
                 required
                 rows={10}
                 value={editing.content || ''}
                 onChange={(e) => setEditing({ ...editing, content: e.target.value })}
-                placeholder="## 소제목&#10;본문 내용을 마크다운으로 작성하세요."
+                placeholder="## 소제목&#10;본문 내용을 마크다운으로 작성하세요. 아래 추가 이미지에서 [본문 커서 위치에 삽입]을 누르면 원하는 문단 사이에 사진이 배치됩니다."
                 className="w-full px-3 py-2.5 text-sm font-mono-tabular bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
               />
             )}
           </div>
+
+          <NewsGalleryEditor
+            images={editing.galleryImages || []}
+            onFunctionalChange={(updater) =>
+              setEditing((prev) =>
+                prev ? { ...prev, galleryImages: updater(prev.galleryImages || []) } : prev
+              )
+            }
+            articleText={editing.content || ''}
+            onInsertMarker={(marker) => insertMarkerIntoContent(marker)}
+            onInsertAtParagraph={(marker, idx) => insertMarkerIntoContent(marker, idx)}
+            defaultSource={editing.sourceName || ''}
+            onNotify={showToast}
+            getIdToken={user ? () => user.getIdToken() : undefined}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-[#303741]">
             <input
@@ -1035,6 +1223,11 @@ export const PostsTab: React.FC = () => {
                 <span>·</span>
                 <span>{p.visibilityState === 'published' ? '공개' : '임시저장'}</span>
                 {Boolean(p.scheduledAt) && <span>· 예약: {formatKST(p.scheduledAt)}</span>}
+                {(p.galleryImages?.length ?? 0) > 0 && (
+                  <span className="font-mono-tabular text-[#C5CBD3]">
+                    · 추가 이미지 {p.galleryImages?.length}장
+                  </span>
+                )}
                 {p.isSample && <span className="font-mono-tabular text-[#C5CBD3]">· SAMPLE</span>}
               </div>
               <p className="text-sm font-medium text-[#F3F4F6] truncate">{p.title}</p>
@@ -1218,8 +1411,16 @@ export const NoticesTab: React.FC = () => {
 };
 
 /* ============================================================================
-   10. 배너 및 협찬 관리 (REPACK 포함, 위치/기간/우선순위/클릭수)
+   10. 배너 및 협찬 관리 (REPACK 포함, 위치/기간/우선순위/클릭수/캠페인 메타)
 ============================================================================ */
+const PLACEMENT_ORDER: SponsorPlacement[] = [
+  'home_banner',
+  'news_inline',
+  'drops_banner',
+  'home_partners',
+  'shop_banner',
+];
+
 const PLACEMENT_LABELS: Record<Sponsor['placement'], string> = {
   home_banner: '메인 스폰서 배너 (홈 상단)',
   news_inline: '뉴스 · 추첨 내 인라인 광고',
@@ -1228,16 +1429,45 @@ const PLACEMENT_LABELS: Record<Sponsor['placement'], string> = {
   drops_banner: '정가·추첨 페이지 배너 (/drops)',
 };
 
+type SponsorFilterStatus = 'all' | 'active' | 'paused' | 'scheduled' | 'ended' | 'draft';
+
+function getSponsorRuntimeStatus(
+  s: Sponsor,
+  meta?: SponsorExtendedMeta
+): Exclude<SponsorFilterStatus, 'all'> {
+  if (s.visibilityState !== 'published') return 'draft';
+  if (meta?.isPaused) return 'paused';
+  const now = Date.now();
+  const start = toDateSafe(s.startAt)?.getTime();
+  const end = toDateSafe(s.endAt)?.getTime();
+  if (start && now < start) return 'scheduled';
+  if (end && now > end) return 'ended';
+  return 'active';
+}
+
 export const SponsorsTab: React.FC = () => {
-  const { sponsors, analyticsEvents, showToast } = useAdmin();
+  const {
+    user,
+    sponsors,
+    analyticsEvents,
+    draftConfig,
+    setDraftConfig,
+    saveDraftConfig,
+    showToast,
+  } = useAdmin();
   const activeSponsors = sponsors.filter((s) => s.visibilityState !== 'trashed');
+  const sponsorMetaMap = draftConfig.eventsSettings?.sponsorMeta ?? {};
 
   const [editing, setEditing] = useState<Partial<Sponsor> | null>(null);
+  const [editingMeta, setEditingMeta] = useState<SponsorExtendedMeta>({});
   const [startLocal, setStartLocal] = useState('');
   const [endLocal, setEndLocal] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingDesktop, setUploadingDesktop] = useState(false);
   const [uploadingMobile, setUploadingMobile] = useState(false);
+  const [placementFilter, setPlacementFilter] = useState<SponsorPlacement | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<SponsorFilterStatus>('all');
+  const [savingSponsor, setSavingSponsor] = useState(false);
 
   const getImpressionCount = (sponsorId: string) =>
     analyticsEvents.filter((e) => e.eventType === 'sponsor_impression' && e.targetId === sponsorId).length;
@@ -1248,9 +1478,47 @@ export const SponsorsTab: React.FC = () => {
   const formatCtr = (impressions: number, clicks: number) =>
     impressions > 0 ? `${((clicks / impressions) * 100).toFixed(1)}%` : '-';
 
+  const persistSponsorMeta = async (sponsorId: string, nextMeta: SponsorExtendedMeta) => {
+    const cleanedMeta: SponsorExtendedMeta = {
+      ...(nextMeta.campaignName?.trim() ? { campaignName: nextMeta.campaignName.trim().slice(0, 120) } : {}),
+      ...(nextMeta.headline?.trim() ? { headline: nextMeta.headline.trim().slice(0, 180) } : {}),
+      ...(nextMeta.videoUrl?.trim() ? { videoUrl: nextMeta.videoUrl.trim().slice(0, 500) } : {}),
+      ...(nextMeta.memo?.trim() ? { memo: nextMeta.memo.trim().slice(0, 500) } : {}),
+      ...(nextMeta.isPaused ? { isPaused: true } : {}),
+    };
+    const nextMap = { ...sponsorMetaMap };
+    if (Object.keys(cleanedMeta).length > 0) {
+      nextMap[sponsorId] = cleanedMeta;
+    } else {
+      delete nextMap[sponsorId];
+    }
+    const nextConfig = {
+      ...draftConfig,
+      eventsSettings: {
+        hideEndedEventsGlobally: draftConfig.eventsSettings?.hideEndedEventsGlobally ?? false,
+        oripaItems: draftConfig.eventsSettings?.oripaItems,
+        sponsorMeta: nextMap,
+      },
+    };
+    setDraftConfig(nextConfig);
+    await saveDraftConfig(nextConfig);
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'site_config', 'published'), {
+          'eventsSettings.sponsorMeta': nextMap,
+          updatedAt: serverTimestamp(),
+          updatedBy: user.uid,
+        });
+      } catch {
+        // published 문서가 아직 없다면 초안 게시 시 함께 반영됩니다.
+      }
+    }
+  };
+
   const openEditor = (s?: Sponsor) => {
     if (s) {
       setEditing(s);
+      setEditingMeta(sponsorMetaMap[s.id] || {});
       setStartLocal(toKSTDatetimeLocalInput(s.startAt));
       setEndLocal(toKSTDatetimeLocalInput(s.endAt));
     } else {
@@ -1263,12 +1531,13 @@ export const SponsorsTab: React.FC = () => {
         desktopBannerUrl: '',
         mobileBannerUrl: '',
         ctaLabel: '',
-        placement: 'home_partners',
+        placement: placementFilter !== 'all' ? placementFilter : 'home_partners',
         badgeLabel: '협찬',
         priority: activeSponsors.length + 1,
         isSponsored: true,
         visibilityState: 'published',
       });
+      setEditingMeta({});
       setStartLocal('');
       setEndLocal('');
     }
@@ -1277,6 +1546,7 @@ export const SponsorsTab: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editing || !editing.name?.trim() || !editing.url?.trim()) return;
+    setSavingSponsor(true);
     const id = editing.id || generateSafeId('sponsor');
     const isNew = !editing.id;
     const sDate = fromKSTDatetimeLocalInput(startLocal);
@@ -1304,20 +1574,43 @@ export const SponsorsTab: React.FC = () => {
       } else {
         await updateDoc(doc(db, 'sponsors', id), payload);
       }
+      await persistSponsorMeta(id, editingMeta);
       setEditing(null);
-      showToast('협찬 / 광고 상품이 저장되었습니다.');
+      showToast('협찬 / 광고 상품과 캠페인 설정이 저장되었습니다.');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `sponsors/${id}`);
+    } finally {
+      setSavingSponsor(false);
     }
   };
 
+  const handleTogglePause = async (s: Sponsor) => {
+    const current = sponsorMetaMap[s.id] || {};
+    const nextPaused = !current.isPaused;
+    try {
+      await persistSponsorMeta(s.id, { ...current, isPaused: nextPaused });
+      showToast(nextPaused ? `${s.name} 노출을 일시중지했습니다.` : `${s.name} 노출을 재개했습니다.`);
+    } catch (err) {
+      showToast(`상태 변경 실패: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  const filteredSponsors = activeSponsors.filter((s) => {
+    if (placementFilter !== 'all' && s.placement !== placementFilter) return false;
+    if (statusFilter !== 'all') {
+      const rt = getSponsorRuntimeStatus(s, sponsorMetaMap[s.id]);
+      if (rt !== statusFilter) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-6">
-      <div className="border-b border-[#303741] pb-4 flex items-center justify-between gap-4">
+      <div className="border-b border-[#303741] pb-4 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-[#F3F4F6]">배너 및 협찬 광고 관리</h1>
           <p className="text-xs text-[#929AA6] mt-1">
-            광고 상품별 노출 위치, 기간, PC·모바일 배너 이미지 및 실측 노출수·클릭수·CTR을 관리합니다.
+            5개 고정 슬롯별 운영 현황, 일시중지/재개, 캠페인 영상·헤드라인 및 노출수·클릭수·CTR을 관리합니다.
           </p>
         </div>
         <button
@@ -1330,13 +1623,100 @@ export const SponsorsTab: React.FC = () => {
         </button>
       </div>
 
+      {/* Placement Overview Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        {PLACEMENT_ORDER.map((pl) => {
+          const items = activeSponsors.filter((s) => s.placement === pl);
+          const activeCount = items.filter(
+            (s) => getSponsorRuntimeStatus(s, sponsorMetaMap[s.id]) === 'active'
+          ).length;
+          const pausedCount = items.filter(
+            (s) => getSponsorRuntimeStatus(s, sponsorMetaMap[s.id]) === 'paused'
+          ).length;
+          const isSelected = placementFilter === pl;
+          return (
+            <button
+              key={pl}
+              type="button"
+              onClick={() => setPlacementFilter((prev) => (prev === pl ? 'all' : pl))}
+              className={`text-left p-3.5 rounded-lg border transition-colors ${
+                isSelected
+                  ? 'border-[#C5CBD3] bg-[#171C23]'
+                  : 'border-[#303741] bg-[#11151A] hover:border-[#4B5563]'
+              }`}
+            >
+              <p className="text-[11px] text-[#929AA6] truncate">{PLACEMENT_LABELS[pl]}</p>
+              <div className="mt-2 flex items-baseline justify-between gap-2">
+                <span className="text-lg font-mono-tabular font-semibold text-[#F3F4F6]">
+                  {activeCount}건 노출
+                </span>
+                <span className="text-[11px] font-mono-tabular text-[#929AA6]">
+                  {pausedCount > 0 ? `중지 ${pausedCount}` : items.length === 0 ? '빈 슬롯' : `총 ${items.length}`}
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Status Filter Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              { id: 'all', label: '전체' },
+              { id: 'active', label: '노출중' },
+              { id: 'paused', label: '일시중지' },
+              { id: 'scheduled', label: '예약중' },
+              { id: 'ended', label: '종료됨' },
+              { id: 'draft', label: '비공개' },
+            ] as const
+          ).map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setStatusFilter(f.id)}
+              className={`min-h-[32px] px-3 py-1 rounded text-xs border transition-colors ${
+                statusFilter === f.id
+                  ? 'border-[#C5CBD3] bg-[#171C23] text-[#F3F4F6] font-medium'
+                  : 'border-[#303741] bg-[#080A0D] text-[#929AA6] hover:text-[#F3F4F6]'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {placementFilter !== 'all' && (
+          <button
+            type="button"
+            onClick={() => setPlacementFilter('all')}
+            className="text-xs text-[#C5CBD3] underline underline-offset-4"
+          >
+            위치 필터 해제 ({PLACEMENT_LABELS[placementFilter]})
+          </button>
+        )}
+      </div>
+
       {editing && (
-        <form onSubmit={handleSave} className="border border-[#C5CBD3]/50 rounded-lg p-6 bg-[#171C23] space-y-4">
+        <form onSubmit={handleSave} className="border border-[#C5CBD3]/50 rounded-lg p-6 bg-[#171C23] space-y-5">
+          <div className="flex items-center justify-between border-b border-[#303741] pb-3">
+            <h2 className="text-sm font-semibold text-[#F3F4F6]">
+              {editing.id ? '협찬 / 광고 수정' : '새 협찬 / 광고 등록'}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setEditing(null)}
+              className="text-xs text-[#929AA6] hover:text-[#F3F4F6]"
+            >
+              닫기
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               type="text"
               required
-              placeholder="파트너 / 광고명 *"
+              placeholder="파트너 / 브랜드명 *"
               value={editing.name || ''}
               onChange={(e) => setEditing({ ...editing, name: e.target.value })}
               className="min-h-[40px] px-3 text-sm bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
@@ -1348,6 +1728,20 @@ export const SponsorsTab: React.FC = () => {
               value={editing.url || ''}
               onChange={(e) => setEditing({ ...editing, url: e.target.value })}
               className="min-h-[40px] px-3 text-sm bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+            />
+            <input
+              type="text"
+              placeholder="캠페인명 (예: 2026 겨울 컬렉션 파트너십 · 선택)"
+              value={editingMeta.campaignName || ''}
+              onChange={(e) => setEditingMeta({ ...editingMeta, campaignName: e.target.value })}
+              className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+            />
+            <input
+              type="text"
+              placeholder="배너 헤드라인 문구 (미입력 시 브랜드명 표시 · 선택)"
+              value={editingMeta.headline || ''}
+              onChange={(e) => setEditingMeta({ ...editingMeta, headline: e.target.value })}
+              className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             />
             <select
               value={editing.placement || 'home_partners'}
@@ -1402,6 +1796,14 @@ export const SponsorsTab: React.FC = () => {
               value={editing.ctaLabel || ''}
               onChange={(e) => setEditing({ ...editing, ctaLabel: e.target.value })}
               className="min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
+            />
+
+            <input
+              type="url"
+              placeholder="캠페인 영상 URL (YouTube / MP4 · 선택)"
+              value={editingMeta.videoUrl || ''}
+              onChange={(e) => setEditingMeta({ ...editingMeta, videoUrl: e.target.value })}
+              className="sm:col-span-2 min-h-[40px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             />
 
             {/* Brand Logo */}
@@ -1477,15 +1879,6 @@ export const SponsorsTab: React.FC = () => {
                   className="sr-only"
                 />
               </label>
-              {editing.desktopBannerUrl && (
-                <div className="w-16 h-10 rounded border border-[#303741] overflow-hidden shrink-0">
-                  <SafeImage
-                    src={editing.desktopBannerUrl}
-                    alt="PC 배너"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
             </div>
 
             {/* Mobile Banner Image */}
@@ -1521,15 +1914,6 @@ export const SponsorsTab: React.FC = () => {
                   className="sr-only"
                 />
               </label>
-              {editing.mobileBannerUrl && (
-                <div className="w-12 h-10 rounded border border-[#303741] overflow-hidden shrink-0">
-                  <SafeImage
-                    src={editing.mobileBannerUrl}
-                    alt="모바일 배너"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
             </div>
 
             <textarea
@@ -1539,14 +1923,31 @@ export const SponsorsTab: React.FC = () => {
               onChange={(e) => setEditing({ ...editing, description: e.target.value })}
               className="sm:col-span-2 px-3 py-2 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#F3F4F6]"
             />
-            <div className="flex items-center gap-4 text-xs text-[#C5CBD3]">
+
+            <input
+              type="text"
+              placeholder="관리자 내부 메모 (비공개 · 선택)"
+              value={editingMeta.memo || ''}
+              onChange={(e) => setEditingMeta({ ...editingMeta, memo: e.target.value })}
+              className="sm:col-span-2 min-h-[38px] px-3 text-xs bg-[#080A0D] border border-[#303741] rounded text-[#929AA6]"
+            />
+
+            <div className="sm:col-span-2 flex flex-wrap items-center gap-4 text-xs text-[#C5CBD3]">
               <label className="flex items-center gap-1.5">
                 <input
                   type="checkbox"
                   checked={Boolean(editing.isSponsored)}
                   onChange={(e) => setEditing({ ...editing, isSponsored: e.target.checked })}
                 />
-                <span>협찬 배지 표시</span>
+                <span>협찬/SPONSORED 배지 표시</span>
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={Boolean(editingMeta.isPaused)}
+                  onChange={(e) => setEditingMeta({ ...editingMeta, isPaused: e.target.checked })}
+                />
+                <span>노출 일시중지</span>
               </label>
               <select
                 value={editing.visibilityState || 'published'}
@@ -1560,6 +1961,72 @@ export const SponsorsTab: React.FC = () => {
               </select>
             </div>
           </div>
+
+          {/* Live PC vs Mobile Banner Preview */}
+          {(editing.desktopBannerUrl || editing.mobileBannerUrl || editingMeta.headline || editing.name) && (
+            <div className="border-t border-[#303741] pt-4 space-y-2.5">
+              <p className="text-[11px] font-medium text-[#929AA6]">PC / 모바일 배너 실시간 미리보기</p>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="lg:col-span-8 rounded border border-[#303741] bg-white text-[#111827] overflow-hidden">
+                  <div className="px-3 py-1.5 bg-[#F5F6F8] border-b border-[#E5E7EB] text-[10px] text-[#667085]">
+                    PC 뷰 ({PLACEMENT_LABELS[editing.placement || 'home_partners']})
+                  </div>
+                  {editing.desktopBannerUrl ? (
+                    <div className="aspect-[16/5] bg-[#F5F6F8] overflow-hidden">
+                      <SafeImage
+                        src={editing.desktopBannerUrl}
+                        alt="PC 미리보기"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <span className="text-[10px] font-semibold text-[#465C77] uppercase tracking-wider">
+                          {editing.badgeLabel || 'SPONSORED'}
+                          {editingMeta.campaignName ? ` · ${editingMeta.campaignName}` : ''}
+                        </span>
+                        <p className="text-sm font-semibold truncate mt-0.5">
+                          {editingMeta.headline || editing.name || '브랜드명'}
+                        </p>
+                        {editing.description && (
+                          <p className="text-xs text-[#667085] truncate">{editing.description}</p>
+                        )}
+                      </div>
+                      <span className="px-3 py-1.5 rounded bg-[#111827] text-white text-[11px] shrink-0">
+                        {editing.ctaLabel || '공식 사이트'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="lg:col-span-4 rounded border border-[#303741] bg-white text-[#111827] overflow-hidden">
+                  <div className="px-3 py-1.5 bg-[#F5F6F8] border-b border-[#E5E7EB] text-[10px] text-[#667085]">
+                    모바일 뷰
+                  </div>
+                  {editing.mobileBannerUrl || editing.desktopBannerUrl ? (
+                    <div className="aspect-[4/3] bg-[#F5F6F8] overflow-hidden">
+                      <SafeImage
+                        src={editing.mobileBannerUrl || editing.desktopBannerUrl || ''}
+                        alt="모바일 미리보기"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-3 space-y-1.5">
+                      <span className="text-[10px] font-semibold text-[#465C77]">
+                        {editing.badgeLabel || 'SPONSORED'}
+                      </span>
+                      <p className="text-xs font-semibold truncate">
+                        {editingMeta.headline || editing.name || '브랜드명'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -1570,18 +2037,32 @@ export const SponsorsTab: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="px-5 py-2 text-xs font-semibold bg-[#C5CBD3] text-[#080A0D] rounded"
+              disabled={savingSponsor}
+              className="px-5 py-2 text-xs font-semibold bg-[#C5CBD3] text-[#080A0D] rounded disabled:opacity-50"
             >
-              저장
+              {savingSponsor ? '저장 중...' : '저장'}
             </button>
           </div>
         </form>
       )}
 
       <div className="space-y-3">
-        {activeSponsors.map((s) => {
+        {filteredSponsors.map((s) => {
+          const meta = sponsorMetaMap[s.id];
+          const rtStatus = getSponsorRuntimeStatus(s, meta);
           const impressions = getImpressionCount(s.id);
           const clicks = getClickCount(s.id);
+          const statusBadge =
+            rtStatus === 'active'
+              ? { label: '노출중', cls: 'text-emerald-300' }
+              : rtStatus === 'paused'
+                ? { label: '일시중지', cls: 'text-amber-300' }
+                : rtStatus === 'scheduled'
+                  ? { label: '예약중', cls: 'text-sky-300' }
+                  : rtStatus === 'ended'
+                    ? { label: '종료됨', cls: 'text-[#929AA6]' }
+                    : { label: '비공개', cls: 'text-[#929AA6]' };
+
           return (
             <div
               key={s.id}
@@ -1606,18 +2087,35 @@ export const SponsorsTab: React.FC = () => {
                     <span>·</span>
                     <span className="text-[#C5CBD3]">{PLACEMENT_LABELS[s.placement] || s.placement}</span>
                     <span>·</span>
-                    <span className={s.visibilityState === 'published' ? 'text-[#C5CBD3]' : 'text-[#8068BA]'}>
-                      {s.visibilityState === 'published' ? '공개' : '비공개'}
-                    </span>
+                    <span className={statusBadge.cls}>{statusBadge.label}</span>
                     {(s.desktopBannerUrl || s.mobileBannerUrl) && (
                       <>
                         <span>·</span>
                         <span className="text-[#C5CBD3]">이미지 배너</span>
                       </>
                     )}
+                    {meta?.videoUrl && (
+                      <>
+                        <span>·</span>
+                        <span className="text-[#C5CBD3]">영상 포함</span>
+                      </>
+                    )}
                   </div>
-                  <p className="text-base font-semibold text-[#F3F4F6]">{s.name}</p>
+                  <p className="text-base font-semibold text-[#F3F4F6]">
+                    {s.name}
+                    {meta?.campaignName && (
+                      <span className="ml-2 text-xs font-normal text-[#929AA6]">
+                        — {meta.campaignName}
+                      </span>
+                    )}
+                  </p>
+                  {meta?.headline && (
+                    <p className="text-xs text-[#C5CBD3]">{meta.headline}</p>
+                  )}
                   <p className="text-xs text-[#929AA6] truncate">{s.url}</p>
+                  {meta?.memo && (
+                    <p className="text-[11px] text-[#929AA6]">메모: {meta.memo}</p>
+                  )}
                   <div className="flex flex-wrap items-center gap-3 pt-1 text-xs font-mono-tabular text-[#C5CBD3]">
                     <span>노출 {impressions}회</span>
                     <span>·</span>
@@ -1637,6 +2135,18 @@ export const SponsorsTab: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePause(s)}
+                  className={`px-3 py-1.5 text-xs border rounded inline-flex items-center gap-1 ${
+                    meta?.isPaused
+                      ? 'border-emerald-400/50 text-emerald-200 hover:bg-emerald-950/30'
+                      : 'border-amber-400/40 text-amber-200 hover:bg-amber-950/30'
+                  }`}
+                >
+                  {meta?.isPaused ? <Play size={12} /> : <Pause size={12} />}
+                  <span>{meta?.isPaused ? '재개' : '일시중지'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => openEditor(s)}
@@ -1660,6 +2170,12 @@ export const SponsorsTab: React.FC = () => {
             </div>
           );
         })}
+
+        {filteredSponsors.length === 0 && (
+          <div className="border border-dashed border-[#303741] rounded-lg p-8 text-center text-xs text-[#929AA6]">
+            선택된 조건에 해당하는 협찬 · 광고 항목이 없습니다.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1746,7 +2262,10 @@ export const EventsTab: React.FC = () => {
               onChange={(e) => {
                 setDraftConfig((prev) => ({
                   ...prev,
-                  eventsSettings: { hideEndedEventsGlobally: e.target.checked },
+                  eventsSettings: {
+                    ...prev.eventsSettings,
+                    hideEndedEventsGlobally: e.target.checked,
+                  },
                 }));
                 setHasUnsavedChanges(true);
               }}

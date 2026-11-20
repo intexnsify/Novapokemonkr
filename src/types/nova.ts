@@ -5,6 +5,20 @@ export type ProductStatus = '판매중' | '예약중' | '판매완료';
 export type BuybackStatus = '신규' | '검토 중' | '가격 제안' | '협의 완료' | '거래 완료' | '거절';
 export type CardLanguage = '한국어' | '일본어' | '영어' | '기타';
 
+export interface HeroSlide {
+  id: string;
+  badge?: string;
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  ctaUrl: string;
+  desktopImageUrl: string;
+  mobileImageUrl?: string;
+  accentTheme?: 'dark' | 'light';
+  order: number;
+  visible: boolean;
+}
+
 export interface BrandConfig {
   name: string;
   tagline: string;
@@ -12,6 +26,7 @@ export interface BrandConfig {
   description: string;
   logoUrl: string;
   heroImageUrl: string;
+  heroSlides?: HeroSlide[];
   instagramUrl: string;
   tiktokUrl: string;
   youtubeUrl: string;
@@ -49,6 +64,7 @@ export type HomeSectionId =
   | 'sponsors'
   | 'actions'
   | 'featured_products'
+  | 'oripa_live'
   | 'events'
   | 'community'
   | 'reviews'
@@ -99,8 +115,43 @@ export interface LegalConfig {
   businessInfo: BusinessInfoSlot;
 }
 
+export interface SponsorExtendedMeta {
+  campaignName?: string;
+  headline?: string;
+  videoUrl?: string;
+  memo?: string;
+  isPaused?: boolean;
+}
+
+export type OripaSlotStatus = 'available' | 'reserved' | 'sold' | 'disabled';
+export type OripaScheduleMode = 'scheduled' | 'always' | 'ended';
+export type OripaFulfillmentMode = 'live_or_ship' | 'live_only' | 'ship_only';
+
+export interface OripaItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  pricePerSlot: number;
+  totalSlots: number;
+  imageUrl?: string;
+  youtubeChannelUrl?: string;
+  youtubeLiveUrl?: string;
+  liveScheduleText?: string;
+  fulfillmentMode: OripaFulfillmentMode;
+  scheduleMode: OripaScheduleMode;
+  visible: boolean;
+  purchasingDisabled: boolean;
+  slotStatuses: Record<string, OripaSlotStatus>;
+  policyNote?: string;
+  adminMemo?: string;
+  order: number;
+}
+
 export interface EventsSettings {
   hideEndedEventsGlobally: boolean;
+  sponsorMeta?: Record<string, SponsorExtendedMeta>;
+  oripaItems?: OripaItem[];
 }
 
 export interface SiteConfig {
@@ -154,14 +205,32 @@ export interface BuybackRequest {
   updatedAt?: unknown;
 }
 
+export type NewsTcgCategory = '포켓몬 TCG' | '원피스 TCG' | '기타 TCG';
+
+export interface NewsImageItem {
+  id: string;
+  url: string;
+  caption?: string;
+  source?: string;
+  rights?: string;
+  rightsNote?: string;
+  alt?: string;
+}
+
 export interface Post {
   id: string;
   title: string;
   slug: string;
   category: string;
+  tcgCategory?: NewsTcgCategory | '';
+  sourceName?: string;
+  sourceUrl?: string;
+  publishedAtSource?: string;
+  inboxItemId?: string;
   summary?: string;
   content: string;
   coverImage?: string;
+  galleryImages?: NewsImageItem[];
   isPinned: boolean;
   isSample: boolean;
   scheduledAt?: unknown;
@@ -341,5 +410,66 @@ export interface RetailDrop {
   order: number;
   visibilityState: VisibilityState;
   createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+export type NewsSourceType = 'rss' | 'atom' | 'json' | 'manual_only';
+export type NewsSourceStatus = 'ok' | 'error' | 'no_public_feed' | 'idle';
+export type NewsInboxStatus = 'pending' | 'approved' | 'ignored';
+
+export interface NewsSource {
+  id: string;
+  name: string;
+  siteUrl: string;
+  feedUrl?: string;
+  sourceType: NewsSourceType;
+  tcgCategory: NewsTcgCategory;
+  enabled: boolean;
+  isBuiltIn: boolean;
+  lastCheckedAt?: unknown;
+  lastSuccessAt?: unknown;
+  lastStatus: NewsSourceStatus;
+  lastError?: string;
+  lastFetchedCount?: number;
+  lastNewCount?: number;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+export interface NewsInboxItem {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  originalTitle: string;
+  originalUrl: string;
+  canonicalUrlKey: string;
+  publishedAtSource?: string;
+  tcgCategory: NewsTcgCategory;
+  metadataAuthor?: string;
+  metadataSnippet?: string;
+  metadataImageUrl?: string;
+  duplicateCandidateOf?: string;
+  duplicateSimilarityNote?: string;
+  koreanTitle?: string;
+  novaSummary?: string;
+  coverImage?: string;
+  galleryImages?: NewsImageItem[];
+  isPinned: boolean;
+  status: NewsInboxStatus;
+  publishedPostId?: string;
+  aiDraftGenerated?: boolean;
+  fetchedAt?: unknown;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}
+
+export interface NewsSyncState {
+  id: string;
+  lastSyncedAt?: unknown;
+  lastTrigger: 'cron' | 'manual' | 'server_interval';
+  lastNewCount: number;
+  lastCheckedSources: number;
+  lastErrorCount: number;
+  lastErrors: string[];
   updatedAt?: unknown;
 }
