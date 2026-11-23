@@ -143,7 +143,7 @@ const DropCard: React.FC<DropCardProps> = ({
               )}
             </div>
             <span
-              className={`px-2 py-0.5 text-[11px] font-semibold border rounded-sm ${getStatusBadgeClass(
+              className={`inline-flex items-center px-3 py-1 text-sm font-semibold border rounded-full ${getStatusBadgeClass(
                 status.label
               )}`}
             >
@@ -308,7 +308,7 @@ const CampaignGroupBlock: React.FC<CampaignGroupBlockProps> = ({
               <span aria-hidden="true">·</span>
               <span>{campaign.saleType}</span>
               <span
-                className={`px-2 py-0.5 text-[11px] font-semibold border rounded-sm ${getStatusBadgeClass(
+                className={`inline-flex items-center px-3 py-1 text-sm font-semibold border rounded-full ${getStatusBadgeClass(
                   campaignStatus.label
                 )}`}
               >
@@ -419,10 +419,13 @@ export const DropsPage: React.FC = () => {
   const [tcgFilter, setTcgFilter] = useState<'전체' | DropTcgCategory>('전체');
   const [countryFilter, setCountryFilter] = useState<'전체' | DropCountry>('전체');
   const [searchQuery, setSearchQuery] = useState('');
+  const [now, setNow] = useState(Date.now);
   const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     trackAnalyticsEvent('page_view', '/drops');
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   const btnRadius = getButtonRadiusClass(config.theme.buttonShape);
@@ -459,7 +462,7 @@ export const DropsPage: React.FC = () => {
     const ended: RetailDrop[] = [];
 
     filteredDrops.forEach((drop) => {
-      const status = getDropStatusInfo(drop);
+      const status = getDropStatusInfo(drop, now);
       if (status.isEnded) {
         ended.push(drop);
       } else if (isUpcomingStatus(status.label)) {
@@ -470,7 +473,7 @@ export const DropsPage: React.FC = () => {
     });
 
     return { inProgressDrops: inProgress, upcomingDrops: upcoming, endedDrops: ended };
-  }, [filteredDrops]);
+  }, [filteredDrops, now]);
 
   const groupDropsByCampaign = (list: RetailDrop[]) => {
     const campOrder: string[] = [];
@@ -582,6 +585,22 @@ export const DropsPage: React.FC = () => {
           aria-label="정가 구매 및 추첨 필터"
           className="border border-[#E5E7EB] rounded-lg p-4 sm:p-5 bg-[#FFFFFF] space-y-4"
         >
+          <fieldset className="min-w-0 border-b border-[#E5E7EB] pb-4">
+            <legend className="pb-2 text-sm font-semibold">판매 국가</legend>
+            <div className="grid grid-cols-4 sm:inline-grid gap-1 rounded-xl bg-zinc-100 p-1">
+              {COUNTRIES.map((country) => (
+                <button
+                  key={country}
+                  type="button"
+                  aria-pressed={country === countryFilter}
+                  onClick={() => setCountryFilter(country)}
+                  className="min-h-11 rounded-lg px-2 sm:px-5 text-sm font-semibold text-zinc-600 aria-pressed:bg-zinc-900 aria-pressed:text-white"
+                >
+                  {country}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
             <div className="lg:col-span-5 space-y-1.5">
               <p className="text-[11px] font-medium text-[#667085]">판매 유형</p>
@@ -592,6 +611,7 @@ export const DropsPage: React.FC = () => {
                     <button
                       key={type}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => setSaleTypeFilter(type)}
                       className={`min-h-[38px] px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
                         active
@@ -606,7 +626,7 @@ export const DropsPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="lg:col-span-4 grid grid-cols-2 gap-3">
+            <div className="lg:col-span-3">
               <div className="space-y-1.5">
                 <label htmlFor="drops-tcg-filter" className="block text-[11px] font-medium text-[#667085]">
                   TCG 종류
@@ -624,26 +644,9 @@ export const DropsPage: React.FC = () => {
                   ))}
                 </select>
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="drops-country-filter" className="block text-[11px] font-medium text-[#667085]">
-                  국가
-                </label>
-                <select
-                  id="drops-country-filter"
-                  value={countryFilter}
-                  onChange={(e) => setCountryFilter(e.target.value as '전체' | DropCountry)}
-                  className="w-full min-h-[38px] px-2.5 text-xs bg-[#F5F6F8] border border-[#E5E7EB] rounded text-[#111827]"
-                >
-                  {COUNTRIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
-            <div className="lg:col-span-3 space-y-1.5">
+            <div className="lg:col-span-4 space-y-1.5">
               <label htmlFor="drops-search" className="block text-[11px] font-medium text-[#667085]">
                 검색
               </label>

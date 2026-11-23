@@ -160,8 +160,9 @@ export const ShopPage: React.FC = () => {
                 <button
                   key={cat}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`min-h-[40px] px-3.5 py-1.5 text-xs font-medium rounded-md whitespace-nowrap shrink-0 transition-colors border ${
+                  className={`min-h-11 px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap shrink-0 transition-colors border ${
                     active
                       ? 'bg-[#111827] text-[#FFFFFF] border-[#111827]'
                       : 'bg-[#FFFFFF] text-[#667085] border-[#E5E7EB] hover:text-[#111827] hover:border-[#D1D5DB]'
@@ -214,7 +215,7 @@ export const ShopPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="nova-product-grid">
             {filteredProducts.map((product) => (
               <ShopProductCard
                 key={product.id}

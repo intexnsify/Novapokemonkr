@@ -131,7 +131,7 @@ export const NewsPage: React.FC = () => {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-10">
         {/* Editorial Masthead */}
-        <header className="border-b border-[#E5E7EB] pb-7 flex flex-col md:flex-row md:items-end justify-between gap-5">
+        <header className="nova-editorial-header flex flex-col md:flex-row md:items-end justify-between gap-5">
           <div className="space-y-2.5">
             <p className="font-mono-tabular text-[11px] tracking-[0.22em] uppercase text-[#465C77] font-semibold">
               NOVA EDITORIAL · NEWS

@@ -133,7 +133,7 @@ export const SponsorsPage: React.FC = () => {
       />
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-12">
-        <header className="border-b border-[#E5E7EB] pb-8 space-y-4">
+        <header className="nova-editorial-header space-y-4">
           <p className="font-mono-tabular text-[11px] tracking-[0.22em] uppercase text-[#465C77] font-semibold">
             NOVA PARTNERS · BRAND COLLABORATIONS &amp; MEDIA
           </p>
