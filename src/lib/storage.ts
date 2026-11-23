@@ -1,3 +1,4 @@
+
 import { getDownloadURL, ref, uploadBytes, uploadBytesResumable } from 'firebase/storage';
 import { storage } from './firebase';
 
@@ -38,6 +39,7 @@ export async function uploadBuybackPhoto(submissionId: string, file: File, index
   }
 }
 
+// 관리자 이미지(배너·로고·상품·스폰서·SEO)는 Cloudinary에 업로드합니다.
 export async function uploadPublicMedia(
   folder: 'brand' | 'products' | 'posts' | 'sponsors' | 'seo',
   file: File
@@ -45,18 +47,32 @@ export async function uploadPublicMedia(
   const err = validateImageFile(file, MAX_ADMIN_MEDIA_BYTES);
   if (err) throw new Error(err);
 
+  // Cloudinary Upload Preset에서 저장 폴더를 제어합니다.
+  // 기존 호출부와의 호환성을 위해 folder 인수는 유지합니다.
+  void folder;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'nova_media_upload');
+
+  let response: Response;
   try {
-    const safeName = `${Date.now()}_${sanitizeFileName(file.name)}`;
-    const storageRef = ref(storage, `public/${folder}/${safeName}`);
-    await uploadBytes(storageRef, file, { contentType: file.type });
-    return await getDownloadURL(storageRef);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes('unauthorized') || msg.includes('permission') || msg.includes('403')) {
-      throw new Error('Firebase Storage 권한이 거부되었습니다. Firebase Console > Storage를 활성화하고 storage.rules를 적용한 뒤 다시 시도하거나, 이미지 URL을 직접 입력해 주세요.');
-    }
-    throw error;
+    response = await fetch('https://api.cloudinary.com/v1_1/rqjtx0ff/image/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  } catch {
+    throw new Error('Cloudinary 서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.');
   }
+
+  const result = (await response.json().catch(() => ({}))) as {
+    secure_url?: string;
+    error?: { message?: string };
+  };
+  if (!response.ok || !result.secure_url) {
+    throw new Error(result.error?.message || 'Cloudinary 이미지 업로드에 실패했습니다.');
+  }
+  return result.secure_url;
 }
 
 export async function compressImageToDataUrl(
