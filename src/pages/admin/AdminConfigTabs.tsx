@@ -14,13 +14,38 @@ export const BrandSettingsTab: React.FC = () => {
   const { draftConfig, setDraftConfig, setHasUnsavedChanges, showToast } = useAdmin();
   const [uploading, setUploading] = useState<'logo' | 'hero' | null>(null);
 
-  const updateBrand = (patch: Partial<SiteConfig['brand']>) => {
-    setDraftConfig((prev) => ({
+  
+const updateBrand = (patch: Partial<SiteConfig['brand']>) => {
+  setDraftConfig((prev) => {
+    const slides =
+      prev.brand.heroSlides?.length
+        ? prev.brand.heroSlides
+        : DEFAULT_HERO_SLIDES;
+
+    return {
       ...prev,
-      brand: { ...prev.brand, ...patch },
-    }));
-    setHasUnsavedChanges(true);
-  };
+      brand: {
+        ...prev.brand,
+        ...patch,
+        heroSlides:
+          patch.heroImageUrl !== undefined
+            ? slides.map((slide, index) =>
+                index === 0
+                  ? {
+                      ...slide,
+                      desktopImageUrl: patch.heroImageUrl!,
+                      mobileImageUrl: patch.heroImageUrl!,
+                    }
+                  : slide
+              )
+            : prev.brand.heroSlides,
+      },
+    };
+  });
+
+  setHasUnsavedChanges(true);
+};
+
 
   const updateLegal = (patch: Partial<SiteConfig['legal']>) => {
     setDraftConfig((prev) => ({
