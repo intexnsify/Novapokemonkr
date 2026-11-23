@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Handshake,
   Instagram,
   Mail,
   MessageCircle,
@@ -963,7 +964,7 @@ export const HomePage: React.FC = () => {
             id="sponsors"
             className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
-            <div className="flex items-end justify-between gap-4 mb-7">
+            <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
                   OFFICIAL PARTNERS
@@ -974,10 +975,17 @@ export const HomePage: React.FC = () => {
               </div>
               <Link
                 to={`/sponsors${previewSuffix}`}
-                className="text-xs sm:text-sm font-medium text-[#667085] hover:text-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
+                onClick={() => trackAnalyticsEvent('action_click', '/', {
+                  targetType: 'home_partners', targetId: 'partnership_guide', targetLabel: '파트너십 · 광고 안내',
+                })}
+                className="group flex min-h-14 w-full items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-white shadow-sm transition-colors hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-700 md:w-auto"
               >
-                <span>파트너십 · 광고 안내</span>
-                <ArrowRight size={15} />
+                <Handshake size={22} aria-hidden="true" className="shrink-0 text-zinc-300" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-base font-semibold">파트너십 · 광고 안내 보기</span>
+                  <span className="block text-xs text-zinc-300">협업 사례 · 광고 위치 · 문의 방법</span>
+                </span>
+                <ChevronRight size={20} aria-hidden="true" className="shrink-0" />
               </Link>
             </div>
 
