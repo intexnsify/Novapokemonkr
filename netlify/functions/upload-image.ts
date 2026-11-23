@@ -1,5 +1,4 @@
 
-import type { Handler } from '@netlify/functions';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const json = (statusCode: number, data: unknown) => ({
@@ -8,7 +7,7 @@ const json = (statusCode: number, data: unknown) => ({
   body: JSON.stringify(data),
 });
 
-export const handler: Handler = async (event) => {
+export const handler = async (event: { httpMethod: string }) => {
   if (event.httpMethod !== 'POST') {
     return json(405, { error: 'Method not allowed' });
   }

@@ -44,14 +44,14 @@ export const ShopProductCard: React.FC<ShopProductCardProps> = ({
   const metaParts = [product.category, product.grade, product.language].filter(Boolean);
 
   return (
-    <article className="group border border-[#E5E7EB] rounded-lg bg-[#FFFFFF] overflow-hidden flex flex-col nova-card-hover hover:border-[#D1D5DB]">
-      <div className="relative aspect-[4/3] w-full bg-[#F5F6F8] overflow-hidden border-b border-[#E5E7EB]">
+    <article className="min-w-0 group border border-[#E5E7EB] rounded-lg bg-[#FFFFFF] overflow-hidden flex flex-col nova-card-hover hover:border-[#D1D5DB]">
+      <div className="relative aspect-square w-full bg-[#F5F6F8] overflow-hidden border-b border-[#E5E7EB]">
         <Link to={detailUrl} className="block w-full h-full">
           <SafeImage
             src={product.images?.[0]}
             alt={product.title}
             fallbackTitle={product.category}
-            className={`w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03] ${
+            className={`w-full h-full object-contain p-2 sm:p-3 transition-transform duration-300 ease-out group-hover:scale-[1.03] ${
               isSoldOut ? 'opacity-60 grayscale-[35%]' : ''
             }`}
           />
@@ -100,7 +100,7 @@ export const ShopProductCard: React.FC<ShopProductCardProps> = ({
         </div>
       </div>
 
-      <div className="p-4 flex-1 flex flex-col justify-between gap-3">
+      <div className="p-2.5 sm:p-4 flex-1 flex flex-col justify-between gap-3">
         <div className="space-y-1.5">
           <p className="text-[11px] font-mono-tabular text-[#667085] truncate">
             {metaParts.join(' · ')}
@@ -112,7 +112,7 @@ export const ShopProductCard: React.FC<ShopProductCardProps> = ({
           </Link>
         </div>
 
-        <div className="pt-2 border-t border-[#E5E7EB] flex items-center justify-between gap-2">
+        <div className="pt-2 border-t border-[#E5E7EB] flex flex-col items-stretch md:flex-row md:flex-wrap md:items-center justify-between gap-2">
           <span className="font-mono-tabular text-sm sm:text-[15px] font-semibold text-[#111827]">
             {formatKRW(product.price)}
           </span>
@@ -124,7 +124,7 @@ export const ShopProductCard: React.FC<ShopProductCardProps> = ({
                 type="button"
                 onClick={handleQuickView}
                 aria-label={`${product.title} 빠른 보기`}
-                className="min-w-[36px] min-h-[36px] px-2 border border-[#E5E7EB] rounded-md text-[#111827] inline-flex items-center justify-center hover:bg-[#F5F6F8]"
+                className="min-w-11 min-h-11 px-1 border border-[#E5E7EB] rounded-md text-[#111827] inline-flex items-center justify-center hover:bg-[#F5F6F8]"
               >
                 <Eye size={14} />
               </button>
@@ -134,7 +134,7 @@ export const ShopProductCard: React.FC<ShopProductCardProps> = ({
               disabled={isSoldOut}
               onClick={handleAdd}
               aria-label={`${product.title} 장바구니 담기`}
-              className={`min-h-[36px] px-2.5 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-1 whitespace-nowrap transition-colors ${
+              className={`flex-1 min-h-11 px-1 text-xs font-semibold rounded-md inline-flex items-center justify-center gap-1 whitespace-nowrap transition-colors ${
                 isSoldOut
                   ? 'bg-[#F5F6F8] text-[#667085] border border-[#E5E7EB] cursor-not-allowed'
                   : justAdded

@@ -105,3 +105,33 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+.nova-product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(.5rem, 2vw, 1.5rem);
+}
+
+@media (min-width: 48rem) {
+  .nova-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 64rem) {
+  .nova-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.nova-editorial-header {
+  padding: clamp(1.25rem, 4vw, 3rem);
+  background: linear-gradient(115deg, #131416, #27292d 72%, #33353a);
+  border: 1px solid #414449;
+  border-radius: .875rem;
+}
+
+.nova-editorial-header h1 { color: #fafafa; }
+.nova-editorial-header p { color: #c9cbd0; }
+.nova-editorial-header a {
+  align-self: start;
+  background: #f1f2f4;
+  color: #1b1d20;
+}
+.nova-editorial-header a:hover { background: white; }

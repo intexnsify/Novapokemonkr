@@ -14,9 +14,9 @@ export function getButtonRadiusClass(shape: 'sharp' | 'rounded' | 'pill' | undef
 }
 
 export function getSectionSpacingClass(spacing: 'compact' | 'normal' | 'relaxed' | undefined): string {
-  if (spacing === 'compact') return 'py-8 md:py-11';
-  if (spacing === 'relaxed') return 'py-14 md:py-20';
-  return 'py-11 md:py-16';
+  if (spacing === 'compact') return 'py-6 md:py-9';
+  if (spacing === 'relaxed') return 'py-11 md:py-16';
+  return 'py-8 md:py-12';
 }
 
 export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -183,7 +183,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
           <Link
             to={`/${previewSuffix}`}
             onClick={handleNavClick}
-            className="flex items-center gap-2.5 whitespace-nowrap shrink-0 hover:opacity-80 transition-opacity"
+            className="flex min-w-0 items-center gap-2.5 whitespace-nowrap hover:opacity-80 transition-opacity"
           >
             <span className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-[#111827]/12 bg-[#F5F6F8] shrink-0 block">
               <SafeImage
@@ -194,7 +194,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
                 className="w-full h-full object-cover scale-[1.08]"
               />
             </span>
-            <span className="font-brand text-base sm:text-lg font-bold tracking-[0.22em] text-[#111827]">
+            <span className="truncate font-brand text-base sm:text-lg font-bold tracking-[0.22em] text-[#111827]">
               {config.brand.name}
             </span>
           </Link>
@@ -265,7 +265,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
               type="button"
               onClick={() => setSearchOpen(true)}
               aria-label="통합 검색"
-              className="w-10 h-10 inline-flex items-center justify-center rounded-md border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
+              className="w-11 h-11 inline-flex items-center justify-center rounded-md border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
             >
               <Search size={17} />
             </button>
@@ -274,7 +274,7 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
               type="button"
               onClick={openCart}
               aria-label={`장바구니 열기 (${totalCount}개)`}
-              className="relative min-w-[40px] h-10 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-md border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
+              className="relative min-w-11 h-11 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-md border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
             >
               <ShoppingBag size={17} />
               {totalCount > 0 && (
@@ -296,12 +296,27 @@ export const PublicLayout: React.FC<{ children: React.ReactNode }> = ({ children
               onClick={() => setMobileMenuOpen((v) => !v)}
               aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
               aria-expanded={mobileMenuOpen}
-              className="lg:hidden w-10 h-10 flex items-center justify-center rounded-md border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
+              className="lg:hidden w-11 h-11 flex items-center justify-center rounded-md border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
             >
               {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
             </button>
           </div>
         </div>
+
+        {!mobileMenuOpen && (
+          <nav aria-label="모바일 바로가기" className="lg:hidden grid grid-cols-5 bg-[#17191d] px-2">
+            {primaryNav.map((item) => (
+              <Link
+                key={item.to}
+                to={`${item.to}${previewSuffix}`}
+                aria-current={isNavActive(item.matchPaths) ? 'page' : undefined}
+                className="min-h-11 grid place-items-center border-b-2 border-transparent text-xs font-medium text-zinc-300 aria-[current=page]:border-zinc-300 aria-[current=page]:text-white"
+              >
+                {item.sub}
+              </Link>
+            ))}
+          </nav>
+        )}
 
         {/* Mobile Drawer */}
         {mobileMenuOpen && (

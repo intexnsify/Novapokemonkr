@@ -474,7 +474,7 @@ export const HomePage: React.FC = () => {
                         싱글 전체 →
                       </Link>
                     </div>
-                    <div className={`grid ${getAdaptiveColsClass(singlesAndSlabs.length, 4)} gap-5`}>
+                    <div className="nova-product-grid">
                       {singlesAndSlabs.map((product) => (
                         <ShopProductCard
                           key={product.id}
@@ -501,7 +501,7 @@ export const HomePage: React.FC = () => {
                         박스 전체 →
                       </Link>
                     </div>
-                    <div className={`grid ${getAdaptiveColsClass(sealedAndOthers.length, 4)} gap-5`}>
+                    <div className="nova-product-grid">
                       {sealedAndOthers.map((product) => (
                         <ShopProductCard
                           key={product.id}
@@ -1307,7 +1307,59 @@ export const HomePage: React.FC = () => {
       {/* 1. Responsive Full-Width Store Hero Slider (Admin Managed, Zero Buyback Chart) */}
       <HeroSlider />
 
-      {/* 2. Pinned Notice Slim Bar & Official Channels */}
+      {/* Top Featured Sponsor Banner / Multi-Banner Carousel (strictly hidden if 0) */}
+      {activeBanner && (
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-3">
+          <SponsorBanner
+            sponsor={activeBanner}
+            placement="home_banner"
+            path="/"
+            variant="hero_banner"
+            buttonRadiusClass={btnRadius}
+            previewSuffix={previewSuffix}
+          />
+          {homeBannerSponsors.length > 1 && (
+            <div className="flex items-center justify-between text-xs text-[#667085]">
+              <div className="flex items-center gap-1.5">
+                {homeBannerSponsors.map((sp, i) => (
+                  <button
+                    key={sp.id}
+                    type="button"
+                    aria-label={`${i + 1}번 스폰서 배너 보기`}
+                    onClick={() => setBannerIdx(i)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      i === bannerIdx ? 'w-6 bg-[#465C77]' : 'w-3 bg-[#E5E7EB] hover:bg-[#D1D5DB]'
+                    }`}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-label="이전 스폰서 배너"
+                  onClick={() =>
+                    setBannerIdx((prev) => (prev - 1 + homeBannerSponsors.length) % homeBannerSponsors.length)
+                  }
+                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8]"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="다음 스폰서 배너"
+                  onClick={() => setBannerIdx((prev) => (prev + 1) % homeBannerSponsors.length)}
+                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8]"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* 4. Dynamic Domain Sections */}
+      {/* Pinned Notice Slim Bar & Official Channels */}
       <div className="border-b border-[#E5E7EB] bg-[#F5F6F8]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs text-[#667085]">
           {pinnedNotice ? (
@@ -1372,58 +1424,6 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Top Featured Sponsor Banner / Multi-Banner Carousel (strictly hidden if 0) */}
-      {activeBanner && (
-        <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-2 space-y-3">
-          <SponsorBanner
-            sponsor={activeBanner}
-            placement="home_banner"
-            path="/"
-            variant="hero_banner"
-            buttonRadiusClass={btnRadius}
-            previewSuffix={previewSuffix}
-          />
-          {homeBannerSponsors.length > 1 && (
-            <div className="flex items-center justify-between text-xs text-[#667085]">
-              <div className="flex items-center gap-1.5">
-                {homeBannerSponsors.map((sp, i) => (
-                  <button
-                    key={sp.id}
-                    type="button"
-                    aria-label={`${i + 1}번 스폰서 배너 보기`}
-                    onClick={() => setBannerIdx(i)}
-                    className={`h-1.5 rounded-full transition-all ${
-                      i === bannerIdx ? 'w-6 bg-[#465C77]' : 'w-3 bg-[#E5E7EB] hover:bg-[#D1D5DB]'
-                    }`}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  aria-label="이전 스폰서 배너"
-                  onClick={() =>
-                    setBannerIdx((prev) => (prev - 1 + homeBannerSponsors.length) % homeBannerSponsors.length)
-                  }
-                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8]"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-                <button
-                  type="button"
-                  aria-label="다음 스폰서 배너"
-                  onClick={() => setBannerIdx((prev) => (prev + 1) % homeBannerSponsors.length)}
-                  className="w-7 h-7 inline-flex items-center justify-center rounded border border-[#E5E7EB] bg-[#FFFFFF] text-[#111827] hover:bg-[#F5F6F8]"
-                >
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* 4. Dynamic Domain Sections */}
       {orderedSections.map((sec) => renderSection(sec.id, sec.limit))}
 
       {/* Quick View Modal */}
