@@ -419,7 +419,7 @@ export const HomePage: React.FC = () => {
       }
 
       case 'featured_products': {
-        const displayLimit = Math.max(4, limit || 8);
+        const displayLimit = Math.min(4, Math.max(1, limit || 4));
         const allDisplay = products.slice(0, displayLimit);
         const singlesAndSlabs = allDisplay.filter(
           (p) => p.category === '등급카드' || p.category === '싱글카드'
@@ -981,16 +981,16 @@ export const HomePage: React.FC = () => {
               </Link>
             </div>
 
-            <div className={`grid ${getAdaptiveColsClass(displayPartners.length, 4)} gap-5`}>
-              {displayPartners.map((sp) => (
-                <PartnerLogoTile
-                  key={sp.id}
-                  sponsor={sp}
-                  showSummary={true}
-                  onClickTrack={() => trackSponsorClick(sp, 'home_partners')}
-                />
-              ))}
-            </div>
+            <SponsorBanner sponsor={displayPartners[0]} placement="home_partners" path="/"
+              variant="home_campaign" buttonRadiusClass={btnRadius} previewSuffix={previewSuffix} />
+            {displayPartners.length > 1 && (
+              <div className={`mt-4 grid ${getAdaptiveColsClass(displayPartners.length - 1, 4)} gap-5`}>
+                {displayPartners.slice(1).map((sp) => (
+                  <PartnerLogoTile key={sp.id} sponsor={sp} showSummary
+                    onClickTrack={() => trackSponsorClick(sp, 'home_partners')} />
+                ))}
+              </div>
+            )}
           </section>
         );
       }

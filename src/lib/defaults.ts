@@ -149,8 +149,8 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
   ],
   homeSections: [
     { id: 'featured_products', label: 'NOVA 마켓 (싱글 · 박스)', visible: true, order: 0, limit: 8 },
-    { id: 'news', label: 'TCG 최신 뉴스', visible: true, order: 1, limit: 4 },
-    { id: 'sponsors', label: '공식 파트너십', visible: true, order: 2, limit: 4 },
+    { id: 'sponsors', label: '공식 파트너십', visible: true, order: 1, limit: 4 },
+    { id: 'news', label: 'TCG 최신 뉴스', visible: true, order: 2, limit: 4 },
     { id: 'retail_raffle', label: '정가 구매 · 추첨 정보', visible: true, order: 3, limit: 4 },
     { id: 'oripa_live', label: 'ORIPA / LIVE OPENING', visible: true, order: 4, limit: 1 },
     { id: 'actions', label: '카드 구매 · 매입 안내', visible: true, order: 5, limit: 2 },

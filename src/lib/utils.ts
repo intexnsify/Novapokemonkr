@@ -212,7 +212,7 @@ export function normalizeHomeSections<
   // Upgrade the published raffle-first layout in memory. Keep visibility, limits
   // and the order of the remaining sections, including any future additions.
   const [raffle, news, sponsors, actions, products, ...rest] = sorted;
-  return [products, news, sponsors, raffle, actions, ...rest].map((s, order) => ({ ...s, order }));
+  return [products, sponsors, news, raffle, actions, ...rest].map((s, order) => ({ ...s, order }));
 }
 
 export function formatDropPrice(price: number, currency: DropCurrency): string {
