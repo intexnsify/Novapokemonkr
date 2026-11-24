@@ -185,7 +185,7 @@ export function isRetailRaffleCategory(category?: string): boolean {
 }
 
 export function normalizeHomeSections<
-  T extends { id: string; label: string; visible: boolean; order: number; limit: number }
+  T extends { id: string; label: string; visible: boolean; order: number; limit: number; customOrder?: boolean }
 >(existing: T[] | undefined, defaults: T[]): T[] {
   if (!existing || existing.length === 0) return defaults;
   const hasRetailRaffle = existing.some((s) => s.id === 'retail_raffle');
@@ -202,7 +202,17 @@ export function normalizeHomeSections<
   }
   const existingIds = new Set(existing.map((s) => s.id));
   const missing = defaults.filter((d) => !existingIds.has(d.id));
-  return [...existing, ...missing.map((m, i) => ({ ...m, order: existing.length + i }))];
+  const sections = [...existing, ...missing.map((m, i) => ({ ...m, order: existing.length + i }))];
+  const sorted = [...sections].sort((a, b) => a.order - b.order);
+  const previousLead = ['retail_raffle', 'news', 'sponsors', 'actions', 'featured_products'];
+  if (sorted.some((s) => s.customOrder) || !previousLead.every((id, i) => sorted[i]?.id === id)) {
+    return sections;
+  }
+
+  // Upgrade the published raffle-first layout in memory. Keep visibility, limits
+  // and the order of the remaining sections, including any future additions.
+  const [raffle, news, sponsors, actions, products, ...rest] = sorted;
+  return [products, sponsors, news, raffle, actions, ...rest].map((s, order) => ({ ...s, order }));
 }
 
 export function formatDropPrice(price: number, currency: DropCurrency): string {

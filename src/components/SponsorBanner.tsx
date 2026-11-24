@@ -11,7 +11,7 @@ interface SponsorBannerProps {
   sponsor: Sponsor;
   placement: string;
   path: string;
-  variant?: 'hero_banner' | 'inline_ad' | 'shop_ad';
+  variant?: 'hero_banner' | 'inline_ad' | 'shop_ad' | 'home_campaign';
   buttonRadiusClass?: string;
   previewSuffix?: string;
 }
@@ -76,6 +76,57 @@ export const SponsorBanner: React.FC<SponsorBannerProps> = ({
       targetLabel: sponsor.name,
     });
   };
+
+  if (variant === 'home_campaign') {
+    const repackDefault = sponsor.id === 'sponsor_repack' &&
+      /^https:\/\/(www\.)?repack\.co\.kr\/?$/.test(sponsor.url) && !campaignLabel && !headline;
+    const campaignUrl = repackDefault ? 'https://www.repack.co.kr/events' : sponsor.url;
+    const brandImage = repackDefault ? 'https://www.repack.co.kr/opengraph-image.png' : '';
+    return (
+      <aside ref={containerRef} aria-label={`${sponsor.name} 파트너 캠페인`}
+        className="grid overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 text-white sm:grid-cols-2">
+        {hasRichMedia ? (
+          <div className="self-center p-3 sm:p-5">
+            <PartnerMediaSlot title={headline || campaignLabel || sponsor.name}
+              brandName={sponsor.name} imageUrl={effectiveDesktopImg} mobileImageUrl={effectiveMobileImg}
+              videoUrl={videoUrl} aspectClass="aspect-[2/1]" />
+          </div>
+        ) : brandImage && !sponsor.logoUrl ? (
+          <SafeImage src={brandImage} alt="리팩 공식 브랜드 이미지" fallbackTitle="REPACK"
+            className="aspect-[1200/630] h-full w-full object-cover" />
+        ) : (
+          <div aria-hidden="true" className="flex min-h-28 items-center justify-center bg-linear-to-br from-zinc-800 via-zinc-950 to-zinc-700 px-5 py-6">
+            {sponsor.logoUrl ? (
+              <SafeImage src={sponsor.logoUrl} alt="" className="h-20 max-w-full object-contain" />
+            ) : (
+              <span className="break-all text-center font-brand text-3xl font-bold tracking-wider text-zinc-200 sm:text-4xl">{sponsor.name}</span>
+            )}
+          </div>
+        )}
+        <div className="flex flex-col items-start justify-center gap-3 p-5 sm:p-8">
+          <p className="text-xs font-semibold text-zinc-300">{sponsor.isSponsored ? '광고' : '파트너'} · {sponsor.name}</p>
+          <h3 className="text-xl font-bold sm:text-2xl">{campaignLabel || headline || (repackDefault ? '리팩과 함께하는 이벤트' : sponsor.name)}</h3>
+          {(campaignLabel && headline || sponsor.description) && (
+            <p className="text-sm leading-relaxed text-zinc-300">{(campaignLabel && headline) || sponsor.description}</p>
+          )}
+          <div className="mt-2 grid w-full gap-2 min-[370px]:grid-cols-2 sm:grid-cols-1 lg:grid-cols-2">
+            <a href={campaignUrl} target="_blank" rel="noopener noreferrer" onClick={handleClick}
+              className={`inline-flex min-h-12 items-center justify-center gap-1.5 bg-white px-2 text-sm font-bold text-zinc-950 hover:bg-zinc-100 ${buttonRadiusClass}`}>
+              {sponsor.ctaLabel?.trim() || (repackDefault ? '리팩 이벤트 보기' : `${sponsor.name} 바로가기`)}
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+            <Link to={`/sponsors${previewSuffix}`}
+              onClick={() => trackAnalyticsEvent('action_click', path, {
+                targetType: placement, targetId: 'partnership_guide', targetLabel: '파트너십 · 광고 안내',
+              })}
+              className={`inline-flex min-h-12 items-center justify-center gap-1 rounded-md border border-zinc-400 bg-zinc-300 px-2 text-sm font-semibold text-zinc-950 hover:bg-zinc-200 ${buttonRadiusClass}`}>
+              파트너십 · 광고 안내
+            </Link>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   if (hasRichMedia) {
     return (

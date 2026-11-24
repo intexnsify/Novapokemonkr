@@ -74,6 +74,7 @@ export type HomeSectionId =
 
 export interface HomeSectionConfig {
   id: HomeSectionId;
+  customOrder?: boolean;
   label: string;
   visible: boolean;
   order: number;

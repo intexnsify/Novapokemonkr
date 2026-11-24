@@ -256,11 +256,8 @@ export const HomePage: React.FC = () => {
           >
             <div className="flex items-end justify-between gap-4 mb-7">
               <div>
-                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
-                  TCG NEWS BRIEFING
-                </p>
                 <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111827]">
-                  주요 TCG 뉴스
+                  최신 TCG 뉴스
                 </h2>
               </div>
               <Link
@@ -419,27 +416,18 @@ export const HomePage: React.FC = () => {
       }
 
       case 'featured_products': {
-        const displayLimit = Math.max(4, limit || 8);
-        const allDisplay = products.slice(0, displayLimit);
-        const singlesAndSlabs = allDisplay.filter(
-          (p) => p.category === '등급카드' || p.category === '싱글카드'
-        );
-        const sealedAndOthers = allDisplay.filter(
-          (p) => p.category !== '등급카드' && p.category !== '싱글카드'
-        );
+        const displayLimit = Math.min(4, Math.max(1, limit || 4));
+        const allDisplay = products.filter((product) => product.status === '판매중').slice(0, displayLimit);
 
         return (
           <section
             key="featured_products"
-            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB] space-y-9`}
+            className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB] space-y-4 sm:space-y-5`}
           >
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
-                  NOVA STORE INVENTORY
-                </p>
                 <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111827]">
-                  NOVA 스토어 컬렉션
+                  판매 중인 상품
                 </h2>
               </div>
               <Link
@@ -459,60 +447,11 @@ export const HomePage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="space-y-8">
-                {/* Featured Singles & Slabs */}
-                {singlesAndSlabs.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
-                      <h3 className="text-base sm:text-lg font-semibold text-[#111827]">
-                        Featured Singles · 등급카드 &amp; 싱글
-                      </h3>
-                      <Link
-                        to={`/shop${previewSuffix}`}
-                        className="text-xs font-medium text-[#465C77] hover:text-[#111827]"
-                      >
-                        싱글 전체 →
-                      </Link>
-                    </div>
-                    <div className="nova-product-grid">
-                      {singlesAndSlabs.map((product) => (
-                        <ShopProductCard
-                          key={product.id}
-                          product={product}
-                          previewSuffix={previewSuffix}
-                          onQuickView={setQuickViewProduct}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Featured Products (Sealed Boxes & Packs) */}
-                {sealedAndOthers.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-2.5">
-                      <h3 className="text-base sm:text-lg font-semibold text-[#111827]">
-                        Featured Products · 미개봉 박스 &amp; 팩
-                      </h3>
-                      <Link
-                        to={`/shop${previewSuffix}`}
-                        className="text-xs font-medium text-[#465C77] hover:text-[#111827]"
-                      >
-                        박스 전체 →
-                      </Link>
-                    </div>
-                    <div className="nova-product-grid">
-                      {sealedAndOthers.map((product) => (
-                        <ShopProductCard
-                          key={product.id}
-                          product={product}
-                          previewSuffix={previewSuffix}
-                          onQuickView={setQuickViewProduct}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <div className="nova-product-grid">
+                {allDisplay.map((product) => (
+                  <ShopProductCard key={product.id} product={product}
+                    previewSuffix={previewSuffix} onQuickView={setQuickViewProduct} />
+                ))}
               </div>
             )}
           </section>
@@ -963,34 +902,17 @@ export const HomePage: React.FC = () => {
             id="sponsors"
             className={`max-w-6xl mx-auto px-4 sm:px-6 ${sectionPad} border-t border-[#E5E7EB]`}
           >
-            <div className="flex items-end justify-between gap-4 mb-7">
-              <div>
-                <p className="font-mono-tabular text-[11px] tracking-[0.2em] uppercase text-[#465C77] font-semibold mb-1.5">
-                  OFFICIAL PARTNERS
-                </p>
-                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#111827]">
-                  공식 파트너 협업 · 캠페인
-                </h2>
+            <h2 className="sr-only">파트너 캠페인</h2>
+            <SponsorBanner sponsor={displayPartners[0]} placement="home_partners" path="/"
+              variant="home_campaign" buttonRadiusClass={btnRadius} previewSuffix={previewSuffix} />
+            {displayPartners.length > 1 && (
+              <div className={`mt-4 grid ${getAdaptiveColsClass(displayPartners.length - 1, 4)} gap-5`}>
+                {displayPartners.slice(1).map((sp) => (
+                  <PartnerLogoTile key={sp.id} sponsor={sp} showSummary
+                    onClickTrack={() => trackSponsorClick(sp, 'home_partners')} />
+                ))}
               </div>
-              <Link
-                to={`/sponsors${previewSuffix}`}
-                className="text-xs sm:text-sm font-medium text-[#667085] hover:text-[#111827] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-colors"
-              >
-                <span>파트너십 · 광고 안내</span>
-                <ArrowRight size={15} />
-              </Link>
-            </div>
-
-            <div className={`grid ${getAdaptiveColsClass(displayPartners.length, 4)} gap-5`}>
-              {displayPartners.map((sp) => (
-                <PartnerLogoTile
-                  key={sp.id}
-                  sponsor={sp}
-                  showSummary={true}
-                  onClickTrack={() => trackSponsorClick(sp, 'home_partners')}
-                />
-              ))}
-            </div>
+            )}
           </section>
         );
       }

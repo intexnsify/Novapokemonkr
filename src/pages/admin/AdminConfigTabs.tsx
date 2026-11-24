@@ -607,7 +607,7 @@ export const HomeLayoutTab: React.FC = () => {
     const copy = [...sections];
     const [picked] = copy.splice(from, 1);
     copy.splice(to, 0, picked);
-    const normalized = copy.map((s, idx) => ({ ...s, order: idx }));
+    const normalized = copy.map((s, idx) => ({ ...s, order: idx, customOrder: true }));
     setDraftConfig((prev) => ({ ...prev, homeSections: normalized }));
     setHasUnsavedChanges(true);
   };
