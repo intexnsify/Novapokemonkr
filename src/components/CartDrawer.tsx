@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useModalFocus } from './useModalFocus';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Copy, MessageCircle, Minus, Plus, ShoppingBag, Trash2, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -11,6 +12,8 @@ export const CartDrawer: React.FC = () => {
   const { items, totalCount, subtotal, isOpen, closeCart, updateQuantity, removeItem, clearCart } =
     useCart();
   const { config, isPreviewDraft } = useSite();
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalFocus(isOpen, modalRef);
   const [copied, setCopied] = useState(false);
 
   const previewSuffix = isPreviewDraft ? '?preview=draft' : '';
@@ -59,6 +62,7 @@ export const CartDrawer: React.FC = () => {
   return (
     <div
       className="fixed inset-0 z-50 bg-[#111827]/50 backdrop-blur-xs flex justify-end"
+      ref={modalRef}
       role="dialog"
       aria-modal="true"
       aria-label="장바구니"
@@ -73,7 +77,7 @@ export const CartDrawer: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <ShoppingBag size={18} className="text-[#111827]" />
             <h2 className="text-base font-semibold text-[#111827]">
-              장바구니 <span className="font-mono-tabular text-sm text-[#667085]">({totalCount})</span>
+              장바구니 <span className="tabular-nums text-sm text-[#667085]">({totalCount})</span>
             </h2>
           </div>
 
@@ -81,7 +85,7 @@ export const CartDrawer: React.FC = () => {
             type="button"
             onClick={closeCart}
             aria-label="장바구니 닫기"
-            className="w-10 h-10 inline-flex items-center justify-center rounded-md border border-[#E5E7EB] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
+            className="w-11 h-11 inline-flex items-center justify-center rounded-md border border-[#E5E7EB] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
           >
             <X size={18} />
           </button>
@@ -124,14 +128,14 @@ export const CartDrawer: React.FC = () => {
                       src={product.images?.[0]}
                       alt={product.title}
                       fallbackTitle={product.category}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                   </Link>
 
                   <div className="flex-1 min-w-0 flex flex-col justify-between gap-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-[11px] font-mono-tabular text-[#667085]">
+                        <p className="text-[11px] tabular-nums text-[#667085]">
                           {product.category}
                           {product.grade ? ` · ${product.grade}` : ''}
                         </p>
@@ -147,36 +151,36 @@ export const CartDrawer: React.FC = () => {
                         type="button"
                         onClick={() => removeItem(product.id)}
                         aria-label={`${product.title} 삭제`}
-                        className="p-1 text-[#667085] hover:text-[#111827] shrink-0"
+                        className="min-w-11 min-h-11 flex items-center justify-center text-[#667085] hover:text-[#111827] shrink-0"
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="inline-flex items-center border border-[#E5E7EB] rounded bg-[#F5F6F8]">
                         <button
                           type="button"
                           onClick={() => updateQuantity(product.id, entry.quantity - 1)}
                           aria-label="수량 감소"
-                          className="w-7 h-7 inline-flex items-center justify-center text-[#111827] hover:bg-[#E5E7EB]"
+                          className="w-11 h-11 inline-flex items-center justify-center text-[#111827] hover:bg-[#E5E7EB]"
                         >
                           <Minus size={12} />
                         </button>
-                        <span className="w-7 text-center text-xs font-mono-tabular text-[#111827]">
+                        <span className="w-7 text-center text-xs tabular-nums text-[#111827]">
                           {entry.quantity}
                         </span>
                         <button
                           type="button"
                           onClick={() => updateQuantity(product.id, entry.quantity + 1)}
                           aria-label="수량 증가"
-                          className="w-7 h-7 inline-flex items-center justify-center text-[#111827] hover:bg-[#E5E7EB]"
+                          className="w-11 h-11 inline-flex items-center justify-center text-[#111827] hover:bg-[#E5E7EB]"
                         >
                           <Plus size={12} />
                         </button>
                       </div>
 
-                      <span className="font-mono-tabular text-sm font-semibold text-[#111827]">
+                      <span className="tabular-nums text-sm font-semibold text-[#111827]">
                         {formatKRW(lineTotal)}
                       </span>
                     </div>
@@ -186,7 +190,7 @@ export const CartDrawer: React.FC = () => {
 
               <div className="p-3.5 rounded-lg bg-[#F5F6F8] border border-[#E5E7EB] space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono-tabular uppercase tracking-wider text-[#667085]">
+                  <span className="text-[11px] tabular-nums uppercase tracking-wider text-[#667085]">
                     DM 문의 요약 메시지
                   </span>
                   <button
@@ -207,10 +211,10 @@ export const CartDrawer: React.FC = () => {
 
         {/* Footer Actions */}
         {items.length > 0 && (
-          <div className="p-5 border-t border-[#E5E7EB] bg-[#FFFFFF] space-y-3">
+          <div className="p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] border-t border-[#E5E7EB] bg-[#FFFFFF] space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-[#667085]">예상 합계 ({totalCount}개)</span>
-              <span className="font-mono-tabular text-xl font-semibold text-[#111827]">
+              <span className="tabular-nums text-xl font-semibold text-[#111827]">
                 {formatKRW(subtotal)}
               </span>
             </div>

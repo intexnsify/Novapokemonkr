@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import { useModalFocus } from './useModalFocus';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Minus, Plus, ShoppingBag, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatKRW } from '../lib/utils';
 import { Product } from '../types/nova';
-import { SafeImage } from './SafeImage';
+import { ProductGallery } from './ProductGallery';
 
 interface ProductQuickViewModalProps {
   product: Product | null;
@@ -18,12 +19,12 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   onClose,
 }) => {
   const { addItem, openCart } = useCart();
-  const [activeImage, setActiveImage] = useState(0);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useModalFocus(!!product, modalRef);
   const [qty, setQty] = useState(1);
   const [addedFeedback, setAddedFeedback] = useState(false);
 
   useEffect(() => {
-    setActiveImage(0);
     setQty(1);
     setAddedFeedback(false);
   }, [product?.id]);
@@ -33,7 +34,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) onClose();
     };
     window.addEventListener('keydown', handleKey);
     return () => {
@@ -44,7 +45,6 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
 
   if (!product) return null;
 
-  const images = product.images && product.images.length > 0 ? product.images : [''];
   const isSoldOut = product.status === '판매완료';
   const maxQty = product.category === '등급카드' || product.category === '싱글카드' ? 5 : 20;
 
@@ -59,6 +59,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   return (
     <div
       className="fixed inset-0 z-50 bg-[#111827]/60 backdrop-blur-xs flex items-center justify-center p-4"
+      ref={modalRef}
       role="dialog"
       aria-modal="true"
       aria-label={`${product.title} 빠른 보기`}
@@ -76,45 +77,14 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="빠른 보기 닫기"
-            className="w-9 h-9 inline-flex items-center justify-center rounded-md border border-[#E5E7EB] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
+            className="w-11 h-11 inline-flex items-center justify-center rounded-md border border-[#E5E7EB] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
           >
             <X size={18} />
           </button>
         </div>
 
         <div className="p-5 sm:p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Left: Gallery */}
-          <div className="space-y-3">
-            <div className="aspect-[4/3] w-full bg-[#F5F6F8] border border-[#E5E7EB] rounded-md overflow-hidden">
-              <SafeImage
-                src={images[activeImage]}
-                alt={product.title}
-                fallbackTitle={product.category}
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            {images.length > 1 && (
-              <div className="grid grid-cols-5 gap-2">
-                {images.map((img, idx) => (
-                  <button
-                    key={`${img}-${idx}`}
-                    type="button"
-                    onClick={() => setActiveImage(idx)}
-                    className={`aspect-square rounded border overflow-hidden bg-[#F5F6F8] transition-colors ${
-                      idx === activeImage ? 'border-[#111827]' : 'border-[#E5E7EB] hover:border-[#D1D5DB]'
-                    }`}
-                  >
-                    <SafeImage
-                      src={img}
-                      alt={`${product.title} ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <ProductGallery key={product.id} product={product} compact/>
 
           {/* Right: Specs & Actions */}
           <div className="flex flex-col justify-between gap-5">
@@ -141,7 +111,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                 {product.title}
               </h2>
 
-              <p className="font-mono-tabular text-2xl font-semibold text-[#111827]">
+              <p className="tabular-nums text-3xl font-bold text-[#111827]">
                 {formatKRW(product.price)}
               </p>
 
@@ -159,6 +129,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
             </div>
 
             <div className="space-y-3 pt-4 border-t border-[#E5E7EB]">
+              {product.status === '예약중' && <p className="text-xs text-slate-600">예약 중 · 구매 가능 여부는 DM 확인이 필요합니다.</p>}
               {!isSoldOut && (
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-medium text-[#667085]">수량</span>
@@ -167,7 +138,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                       type="button"
                       onClick={() => setQty((q) => Math.max(1, q - 1))}
                       aria-label="수량 감소"
-                      className="w-9 h-9 inline-flex items-center justify-center text-[#111827] hover:bg-[#F5F6F8]"
+                      className="w-11 h-11 inline-flex items-center justify-center text-[#111827] hover:bg-[#F5F6F8]"
                     >
                       <Minus size={14} />
                     </button>
@@ -178,7 +149,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
                       type="button"
                       onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
                       aria-label="수량 증가"
-                      className="w-9 h-9 inline-flex items-center justify-center text-[#111827] hover:bg-[#F5F6F8]"
+                      className="w-11 h-11 inline-flex items-center justify-center text-[#111827] hover:bg-[#F5F6F8]"
                     >
                       <Plus size={14} />
                     </button>
