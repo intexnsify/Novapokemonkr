@@ -235,6 +235,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   },
                 },
                 eventsSettings: {
+      buybackPrices: data.eventsSettings?.buybackPrices ?? [],
                   hideEndedEventsGlobally:
                     data.eventsSettings?.hideEndedEventsGlobally ??
                     DEFAULT_SITE_CONFIG.eventsSettings?.hideEndedEventsGlobally ??

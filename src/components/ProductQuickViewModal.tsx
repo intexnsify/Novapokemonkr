@@ -19,12 +19,21 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
   onClose,
 }) => {
   const { addItem, openCart } = useCart();
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dismiss = () => {
+    setClosing(true);
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(onClose, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 180);
+  };
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   const modalRef = useRef<HTMLDivElement>(null);
   useModalFocus(!!product, modalRef);
   const [qty, setQty] = useState(1);
   const [addedFeedback, setAddedFeedback] = useState(false);
 
   useEffect(() => {
+    setClosing(false);
     setQty(1);
     setAddedFeedback(false);
   }, [product?.id]);
@@ -34,7 +43,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) onClose();
+      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) dismiss();
     };
     window.addEventListener('keydown', handleKey);
     return () => {
@@ -63,10 +72,10 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-label={`${product.title} 빠른 보기`}
-      onClick={onClose}
+      onClick={dismiss}
     >
       <div
-        className="w-full max-w-3xl bg-[#FFFFFF] border border-[#E5E7EB] rounded-lg shadow-xl overflow-hidden max-h-[90dvh] flex flex-col nova-fade-in"
+        className={`w-full max-w-3xl bg-[#FFFFFF] border border-[#E5E7EB] rounded-lg shadow-xl overflow-hidden max-h-[90dvh] flex flex-col ${closing ? "quick-view-closing" : "nova-fade-in"}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-5 py-3.5 border-b border-[#E5E7EB] flex items-center justify-between gap-4 bg-[#FFFFFF]">
@@ -75,7 +84,7 @@ export const ProductQuickViewModal: React.FC<ProductQuickViewModalProps> = ({
           </p>
           <button
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             aria-label="빠른 보기 닫기"
             className="w-11 h-11 inline-flex items-center justify-center rounded-md border border-[#E5E7EB] text-[#111827] hover:bg-[#F5F6F8] transition-colors"
           >

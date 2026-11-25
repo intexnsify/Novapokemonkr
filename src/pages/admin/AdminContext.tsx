@@ -181,6 +181,7 @@ function normalizeSiteConfig(data: Partial<SiteConfig>): SiteConfig {
       },
     },
     eventsSettings: {
+      buybackPrices: data.eventsSettings?.buybackPrices ?? [],
       hideEndedEventsGlobally:
         data.eventsSettings?.hideEndedEventsGlobally ??
         DEFAULT_SITE_CONFIG.eventsSettings?.hideEndedEventsGlobally ??

@@ -1,5 +1,6 @@
+import { pages, inCollection } from '../seo/catalog.js';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { trackAnalyticsEvent } from '../lib/analytics';
@@ -24,7 +25,10 @@ const CATEGORIES: ('전체' | ProductCategory)[] = [
 type SortOption = 'order' | 'price_asc' | 'price_desc' | 'newest';
 
 export const ShopPage: React.FC = () => {
-  const { config, products, sponsors, isPreviewDraft } = useSite();
+  const path = useLocation().pathname.replace(/\/$/, '') || '/shop';
+  const meta = pages[path as keyof typeof pages] || pages['/shop'];
+  const { config, products: inventory, sponsors, isPreviewDraft } = useSite();
+  const products = useMemo(()=>inventory.filter(p=>inCollection(path,p)),[inventory,path]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'전체' | ProductCategory>('전체');
   const [collection, setCollection] = useState('');
@@ -69,8 +73,7 @@ export const ShopPage: React.FC = () => {
   return (
     <>
       <SeoManager
-        title="SHOP · 카드 구매 카탈로그"
-        description="NOVA가 엄선한 Pokémon TCG 등급카드, 싱글카드, 미개봉 박스 스토어 및 장바구니 DM 문의."
+        title={meta[0]} description={meta[1]}
       />
 
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-9">
@@ -82,7 +85,7 @@ export const ShopPage: React.FC = () => {
                 NOVA STORE · CARDS &amp; SEALED ARCHIVE
               </p>
               <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#111827]">
-                THE NOVA COLLECTION
+                {path.includes('/collections/') ? meta[0] : 'THE NOVA COLLECTION'}
               </h1>
               <p className="text-sm sm:text-base text-[#667085] max-w-2xl leading-relaxed">
                 한 장의 카드, 하나의 컬렉션. 마음에 드는 상품을 고르고 Instagram DM으로 구매를 문의하세요.
@@ -128,6 +131,7 @@ export const ShopPage: React.FC = () => {
 
         {collections.length > 0 && <section aria-label="컬렉션 둘러보기" className="collection-directory">{collections.map(c=><button key={c.id} aria-pressed={collection===c.id} onClick={()=>{setCollection(collection===c.id?'':c.id);setSelectedCategory('전체');setSearchQuery('');}}><SafeImage src={c.products[0].images?.[0]} alt="" loading="lazy" className="w-16 h-20 object-contain shrink-0"/><span><small>{c.subtitle}</small><strong>{c.title}</strong><span>{c.products.length}개 · 전체 보기 →</span></span></button>)}</section>}
 
+        <nav className="flex gap-4 flex-wrap text-sm underline"><Link to="/shop/collections/psa">PSA 등급카드 판매</Link><Link to="/shop/collections/ar-psa-10">AR PSA 10</Link><Link to="/sell">포켓몬카드 매입 견적</Link></nav>
         {/* Search, Category Filter & Price Sort Controls */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">

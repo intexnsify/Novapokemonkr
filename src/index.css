@@ -177,7 +177,7 @@ body {
 .product-lightbox button {min-width:44px;min-height:44px;display:grid;place-items:center;border-radius:50%;background:#ffffff12;}
 .lightbox-scroll {flex:1;min-height:0;overflow:auto;touch-action:pan-x pan-y pinch-zoom;margin:12px 0;}
 .lightbox-scroll img {width:100%;height:100%;object-fit:contain;}
-.lightbox-scroll.is-enlarged img {width:200%;height:200%;max-width:none;}
+.lightbox-scroll.is-enlarged img {width:auto;height:200%;max-width:none;margin:0 auto;object-fit:initial;}
 .product-mobile-purchase {position:fixed;bottom:0;left:0;right:0;z-index:30;background:#fffffff5;backdrop-filter:blur(12px);box-shadow:0 -4px 20px #1118270a;display:flex;align-items:center;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));}
 .product-mobile-purchase>div {margin-right:auto;}
 .product-mobile-purchase>a,.product-mobile-purchase>button {min-height:48px;padding:0 16px;border-radius:6px;background:#171b22;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:650;}
@@ -202,3 +202,6 @@ body {
 }
 @keyframes novaCollectionReveal {from {opacity:.6;translate:0 12px;}to {opacity:1;translate:0 0;}}
 @media (prefers-reduced-motion:reduce) {.collection-card *, .collection-card:hover .collection-art,.collection-card:hover .collection-image {transform:none!important;}.collection-shine {display:none;}}
+
+.quick-view-closing {animation:novaModalExit 180ms ease-in forwards;}
+@keyframes novaModalExit {to {opacity:0;transform:translateY(6px);}}

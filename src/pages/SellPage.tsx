@@ -1,5 +1,6 @@
+import { pages, inCollection } from '../seo/catalog.js';
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { AlertCircle, ArrowLeft, CheckCircle2, ImagePlus, Lock, Maximize2, Trash2 } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
@@ -22,7 +23,9 @@ interface PreviewFile {
 }
 
 export const SellPage: React.FC = () => {
-  const { isPreviewDraft, buybackGuideImageUrl } = useSite();
+  const path = useLocation().pathname.replace(/\/$/, '') || '/sell';
+  const meta = pages[path as keyof typeof pages] || pages['/sell'];
+  const { config, isPreviewDraft, buybackGuideImageUrl } = useSite();
   const previewSuffix = isPreviewDraft ? '?preview=draft' : '';
 
   const [cardName, setCardName] = useState('');
@@ -144,6 +147,7 @@ export const SellPage: React.FC = () => {
         updatedAt: serverTimestamp(),
       });
 
+      void trackAnalyticsEvent('action_click', path, {targetType:'buyback_submit_success'});
       localStorage.setItem(COOLDOWN_KEY, String(Date.now() + COOLDOWN_SECONDS * 1000));
       setCooldownLeft(COOLDOWN_SECONDS);
 
@@ -169,8 +173,7 @@ export const SellPage: React.FC = () => {
   return (
     <>
       <SeoManager
-        title="SELL · 비공개 카드 매입 안내 및 신청"
-        description="NOVA 포켓몬 카드 매입 기준 안내 및 비공개 Pokémon TCG 카드 매입 신청."
+        title={meta[0]} description={meta[1]}
       />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-8">
@@ -188,10 +191,10 @@ export const SellPage: React.FC = () => {
             </Link>
           </div>
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#111827]">
-            카드 매입 안내 · 비공개 신청
+            {meta[0]}
           </h1>
           <p className="text-sm sm:text-base text-[#667085] leading-relaxed">
-            소장 중인 Pokémon TCG 싱글·등급 카드 및 미개봉 박스의 매입 기준을 확인하고 견적을 접수하실 수 있습니다.
+            {meta[1]}
           </p>
           <div className="flex items-start gap-2.5 p-3.5 rounded-md border border-[#E5E7EB] bg-[#F5F6F8] text-xs text-[#667085]">
             <Lock size={14} className="mt-0.5 shrink-0 text-[#465C77]" />
@@ -201,6 +204,9 @@ export const SellPage: React.FC = () => {
           </div>
         </div>
 
+        <nav className="flex flex-wrap items-center gap-3"><a href="#quote" className="inline-flex min-h-12 items-center bg-slate-900 text-white rounded px-5">매입 견적 신청하기</a>{['/sell/psa','/sell/singles','/sell/sealed'].map((u,i)=><Link key={u} className="text-sm underline" to={u+previewSuffix}>{['PSA 등급카드','싱글카드','미개봉 박스'][i]} 매입</Link>)}</nav>
+        {Boolean(config.eventsSettings?.buybackPrices?.length) && <section><h2 className="font-bold">매입 기준 가격표</h2><dl>{(config.eventsSettings?.buybackPrices || []).filter(r=>r.name && r.price>0).map((r,i)=><div key={i} className="flex justify-between py-2 border-b"><dt>{r.name}</dt><dd>{r.price.toLocaleString('ko-KR')}원</dd></div>)}</dl></section>}
+        <section className="space-y-3"><h2 className="text-xl font-semibold">매입 절차와 자주 묻는 질문</h2><p>사진과 수량 제출 → 상태 검토 및 견적 안내 → 거래 조건 확인</p><details><summary>포켓몬카드 고가매입 견적은 어떻게 결정되나요?</summary><p>카드 번호, 언어, 등급, 보관 상태를 확인합니다. 희망 가격을 함께 적어 주세요. 최종 금액은 개별 안내를 통해 확인하세요.</p></details><details><summary>포켓몬카드 현금매입과 정산 방법을 확인하고 싶어요.</summary><p>희망하는 정산 방법을 요청사항에 남겨 주세요. 발송 전에 매입 가능 여부와 지급 방식, 시점을 담당자와 확인하세요.</p></details></section>
         {/* Dedicated Buyback Guide Card (Relocated exclusively from Home Hero) */}
         {buybackGuideImageUrl && (
           <section className="border border-[#E5E7EB] rounded-lg overflow-hidden bg-[#FFFFFF]">
@@ -270,7 +276,7 @@ export const SellPage: React.FC = () => {
           </div>
         )}
 
-        <form
+        <form id="quote" style={{scrollMarginTop:90}}
           onSubmit={handleSubmit}
           className="border border-[#E5E7EB] rounded-lg p-6 sm:p-8 bg-[#FFFFFF] space-y-6"
         >

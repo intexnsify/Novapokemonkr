@@ -20,6 +20,6 @@ test('newest ordering supports Firestore timestamps and preserves inputs',()=>{
  const older={...base,id:'old',createdAt:{seconds:1}},newer={...base,id:'new',createdAt:{seconds:2}};
  const list=[older,newer];assert.deepEqual([...list].sort(newestFirst).map(p=>p.id),['new','old']);
  assert.equal(list[0].id,'old');
- assert.ok(availabilityRank(base)<availabilityRank({...base,status:'予約中' as never}));
+ assert.ok(availabilityRank(base)<availabilityRank({...base,status:'예약중'}));
  assert.ok(availabilityRank({...base,status:'예약중'})<availabilityRank({...base,status:'판매완료'}));
 });

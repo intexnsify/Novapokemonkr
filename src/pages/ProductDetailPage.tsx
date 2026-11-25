@@ -1,3 +1,4 @@
+import {productDetail} from '../seo/catalog.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -93,7 +94,7 @@ export const ProductDetailPage: React.FC = () => {
     <>
       <SeoManager
         title={product.title}
-        description={product.description || `${product.title} — ${formatKRW(product.price)}`}
+        description={productDetail(product)}
         image={product.images?.[0]}
       />
 

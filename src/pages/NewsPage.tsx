@@ -515,6 +515,6 @@ export const NewsPage: React.FC = () => {
           </div>
         )}
       </div>
-    </>
+    <div className="max-w-6xl mx-auto px-4 py-5"><Link to="/sell" className="text-sm underline">포켓몬카드 매입 견적 신청하기 →</Link></div></>
   );
 };

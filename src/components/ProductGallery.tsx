@@ -9,6 +9,7 @@ export function ProductGallery({product, compact = false}: {product: Product; co
   const [zoom, setZoom] = useState(false);
   const [enlarged, setEnlarged] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  const swiped = useRef(false);
   const touch = useRef<{x:number;y:number}|null>(null);
   const move = (delta: number) => { setIndex(i => (i + delta + images.length) % images.length); setEnlarged(false); };
   useEffect(() => { setIndex(0); setZoom(false); }, [product.id]);
@@ -21,8 +22,8 @@ export function ProductGallery({product, compact = false}: {product: Product; co
   }, [zoom]);
   const image = <SafeImage src={images[index]} alt={`${product.title} 사진 ${index + 1}`} fallbackTitle={product.title} className="w-full h-full object-contain" decoding="async" />;
   return <div className={`product-gallery ${compact ? 'is-compact' : ''} ${product.category === '미개봉 박스' ? 'is-box' : ''}`}>
-    <div className="product-gallery-stage" onTouchStart={e => {touch.current = e.touches.length === 1 ? {x:e.touches[0].clientX,y:e.touches[0].clientY}:null;}} onTouchEnd={e => {const t=touch.current; touch.current=null; if(!t || images.length<2)return; const dx=e.changedTouches[0].clientX-t.x; const dy=e.changedTouches[0].clientY-t.y; if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)) move(dx>0?-1:1);}}>
-      <button className="product-gallery-image" disabled={!images.length} onClick={() => {setEnlarged(false);setZoom(true);}} aria-label="상품 이미지 크게 보기">{image}</button>
+    <div className="product-gallery-stage" onTouchStart={e => {swiped.current=false;touch.current = e.touches.length === 1 ? {x:e.touches[0].clientX,y:e.touches[0].clientY}:null;}} onTouchEnd={e => {const t=touch.current; touch.current=null; if(!t || images.length<2)return; const dx=e.changedTouches[0].clientX-t.x; const dy=e.changedTouches[0].clientY-t.y; if(Math.abs(dx)>50 && Math.abs(dx)>Math.abs(dy)) {swiped.current=true;move(dx>0?-1:1);}}}>
+      <button className="product-gallery-image" disabled={!images.length} onClick={() => {if(swiped.current){swiped.current=false;return;}setEnlarged(false);setZoom(true);}} aria-label="상품 이미지 크게 보기">{image}</button>
       {images.length>0 && <button className="gallery-expand" onClick={() => {setEnlarged(false);setZoom(true);}}><Maximize2 size={15}/> 확대 보기</button>}
       {images.length>1 && <><button className="gallery-arrow left-2" aria-label="이전 상품 사진" onClick={()=>move(-1)}><ChevronLeft size={20}/></button><button className="gallery-arrow right-2" aria-label="다음 상품 사진" onClick={()=>move(1)}><ChevronRight size={20}/></button><span className="gallery-count">{index+1} / {images.length}</span></>}
     </div>

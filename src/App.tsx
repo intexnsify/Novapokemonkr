@@ -54,6 +54,11 @@ export default function App() {
                       <Route path="/" element={<HomePage />} />
                       <Route path="/drops" element={<DropsPage />} />
                       <Route path="/shop" element={<ShopPage />} />
+                      <Route path="/sell/psa" element={<SellPage />} />
+<Route path="/sell/singles" element={<SellPage />} />
+<Route path="/sell/sealed" element={<SellPage />} />
+                      <Route path="/shop/collections/psa" element={<ShopPage />} />
+<Route path="/shop/collections/ar-psa-10" element={<ShopPage />} />
                       <Route path="/shop/:id" element={<ProductDetailPage />} />
                       <Route path="/market" element={<ShopPage />} />
                       <Route path="/oripa" element={<OripaPage />} />

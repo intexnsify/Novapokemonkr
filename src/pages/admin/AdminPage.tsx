@@ -1,3 +1,4 @@
+import {BuybackPrices} from '../../components/BuybackPrices';
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -121,7 +122,7 @@ const AdminShell: React.FC = () => {
       case 'products':
         return <ProductsTab />;
       case 'buybacks':
-        return <BuybacksTab />;
+        return <><BuybackPrices/><BuybacksTab /></>;
       case 'posts':
         return <PostsTab />;
       case 'news_inbox':

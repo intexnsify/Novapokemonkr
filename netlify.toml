@@ -48,3 +48,6 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[functions."catalog-seo"]
+  included_files = ["dist/index.html"]
