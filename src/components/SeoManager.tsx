@@ -1,3 +1,5 @@
+import { origin } from '../seo/catalog.js';
+import { useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useSite } from '../context/SiteContext';
 
@@ -8,6 +10,7 @@ interface SeoManagerProps {
 }
 
 export const SeoManager: React.FC<SeoManagerProps> = ({ title, description, image }) => {
+  const {pathname} = useLocation();
   const { config } = useSite();
 
   useEffect(() => {
@@ -15,6 +18,10 @@ export const SeoManager: React.FC<SeoManagerProps> = ({ title, description, imag
     const finalDesc = description || config.seo.metaDescription;
     const finalImg = image || config.seo.ogImageUrl;
 
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]') || document.createElement('link');
+    canonical.rel='canonical';canonical.href=origin+pathname;document.head.appendChild(canonical);
+    const schema=document.getElementById('product-schema');
+    if(schema && JSON.parse(schema.textContent || '{}').offers?.url !== canonical.href) schema.remove();
     document.title = finalTitle;
 
     const setMeta = (selector: string, attr: 'name' | 'property', key: string, content: string) => {
@@ -36,7 +43,7 @@ export const SeoManager: React.FC<SeoManagerProps> = ({ title, description, imag
     setMeta('meta[name="twitter:card"]', 'name', 'twitter:card', config.seo.twitterCard);
     setMeta('meta[name="twitter:title"]', 'name', 'twitter:title', finalTitle);
     setMeta('meta[name="twitter:description"]', 'name', 'twitter:description', finalDesc);
-  }, [title, description, image, config.brand.name, config.seo]);
+  }, [pathname, title, description, image, config.brand.name, config.seo]);
 
   return null;
 };

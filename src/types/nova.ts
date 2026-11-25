@@ -150,6 +150,7 @@ export interface OripaItem {
 }
 
 export interface EventsSettings {
+  buybackPrices?: {name:string;price:number}[];
   hideEndedEventsGlobally: boolean;
   sponsorMeta?: Record<string, SponsorExtendedMeta>;
   oripaItems?: OripaItem[];

@@ -24,6 +24,12 @@ export async function trackAnalyticsEvent(
   try {
     if (typeof window !== 'undefined') {
       if (window.location.pathname.startsWith('/admin')) return;
+      const conversion = extra?.targetType === 'buyback_submit_success' ? 'nova_buyback_lead' :
+        eventType === 'dm_click' && ['product_dm','cart_drawer_dm'].includes(extra?.targetType || '') ? 'nova_product_inquiry' : '';
+      if (conversion) {
+        const browser = window as Window & { dataLayer?: unknown[] };
+        (browser.dataLayer ||= []).push({event: conversion, page_path: path});
+      }
       if (Date.now() < quotaPausedUntil) return;
 
       if (eventType === 'page_view') {

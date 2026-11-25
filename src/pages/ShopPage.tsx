@@ -1,9 +1,12 @@
+import { pages, inCollection } from '../seo/catalog.js';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, Search } from 'lucide-react';
 import { useSite } from '../context/SiteContext';
 import { trackAnalyticsEvent } from '../lib/analytics';
 import { getInstagramDmUrl } from '../lib/utils';
+import { newestFirst, productCollections } from '../lib/products';
+import { SafeImage } from '../components/SafeImage';
 import { Product, ProductCategory } from '../types/nova';
 import { ProductQuickViewModal } from '../components/ProductQuickViewModal';
 import { SeoManager } from '../components/SeoManager';
@@ -22,9 +25,14 @@ const CATEGORIES: ('전체' | ProductCategory)[] = [
 type SortOption = 'order' | 'price_asc' | 'price_desc' | 'newest';
 
 export const ShopPage: React.FC = () => {
-  const { config, products, sponsors, isPreviewDraft } = useSite();
+  const path = useLocation().pathname.replace(/\/$/, '') || '/shop';
+  const meta = pages[path as keyof typeof pages] || pages['/shop'];
+  const { config, products: inventory, sponsors, isPreviewDraft } = useSite();
+  const products = useMemo(()=>inventory.filter(p=>inCollection(path,p)),[inventory,path]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<'전체' | ProductCategory>('전체');
+  const [collection, setCollection] = useState('');
+  const collections = useMemo(() => productCollections(products), [products]);
   const [sortBy, setSortBy] = useState<SortOption>('order');
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
@@ -38,7 +46,8 @@ export const ShopPage: React.FC = () => {
 
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const list = products.filter((p) => {
+    const source = collection ? collections.find(c=>c.id===collection)?.products || [] : products;
+    const list = source.filter((p) => {
       if (selectedCategory !== '전체' && p.category !== selectedCategory) return false;
       if (!q) return true;
       return (
@@ -56,31 +65,30 @@ export const ShopPage: React.FC = () => {
       return [...list].sort((a, b) => b.price - a.price);
     }
     if (sortBy === 'newest') {
-      return [...list].reverse();
+      return [...list].sort(newestFirst);
     }
     return list;
-  }, [products, searchQuery, selectedCategory, sortBy]);
+  }, [products, searchQuery, selectedCategory, sortBy, collection, collections]);
 
   return (
     <>
       <SeoManager
-        title="SHOP · 카드 구매 카탈로그"
-        description="NOVA가 엄선한 Pokémon TCG 등급카드, 싱글카드, 미개봉 박스 스토어 및 장바구니 DM 문의."
+        title={meta[0]} description={meta[1]}
       />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-9">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-10 md:py-14 space-y-9">
         {/* Market Header */}
-        <header className="border-b border-[#E5E7EB] pb-7 space-y-6">
+        <header className="nova-editorial-header space-y-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div className="space-y-2">
               <p className="font-mono-tabular text-[11px] tracking-[0.22em] uppercase text-[#465C77] font-semibold">
                 NOVA STORE · CARDS &amp; SEALED ARCHIVE
               </p>
               <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-[#111827]">
-                컬렉션 판매 스토어
+                {path.includes('/collections/') ? meta[0] : 'THE NOVA COLLECTION'}
               </h1>
               <p className="text-sm sm:text-base text-[#667085] max-w-2xl leading-relaxed">
-                NOVA가 직접 검수한 등급카드·싱글카드·미개봉 박스입니다. 원하는 상품을 장바구니에 담아 한 번에 Instagram DM(@novapokemonkr)으로 문의하실 수 있습니다.
+                한 장의 카드, 하나의 컬렉션. 마음에 드는 상품을 고르고 Instagram DM으로 구매를 문의하세요.
               </p>
             </div>
             <p className="text-xs font-mono-tabular text-[#667085] shrink-0">
@@ -121,6 +129,9 @@ export const ShopPage: React.FC = () => {
           </div>
         )}
 
+        {collections.length > 0 && <section aria-label="컬렉션 둘러보기" className="collection-directory">{collections.map(c=><button key={c.id} aria-pressed={collection===c.id} onClick={()=>{setCollection(collection===c.id?'':c.id);setSelectedCategory('전체');setSearchQuery('');}}><SafeImage src={c.products[0].images?.[0]} alt="" loading="lazy" className="w-16 h-20 object-contain shrink-0"/><span><small>{c.subtitle}</small><strong>{c.title}</strong><span>{c.products.length}개 · 전체 보기 →</span></span></button>)}</section>}
+
+        <nav className="flex gap-4 flex-wrap text-sm underline"><Link to="/shop/collections/psa">PSA 등급카드 판매</Link><Link to="/shop/collections/ar-psa-10">AR PSA 10</Link><Link to="/sell">포켓몬카드 매입 견적</Link></nav>
         {/* Search, Category Filter & Price Sort Controls */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -154,14 +165,14 @@ export const ShopPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-            {CATEGORIES.map((cat) => {
+            {CATEGORIES.filter(cat=>cat==='전체'||products.some(p=>p.category===cat)).map((cat) => {
               const active = selectedCategory === cat;
               return (
                 <button
                   key={cat}
                   type="button"
                   aria-pressed={active}
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => {setSelectedCategory(cat);setCollection('');}}
                   className={`min-h-11 px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap shrink-0 transition-colors border ${
                     active
                       ? 'bg-[#111827] text-[#FFFFFF] border-[#111827]'
@@ -175,6 +186,7 @@ export const ShopPage: React.FC = () => {
           </div>
         </div>
 
+        <div className="flex items-center justify-between"><h2 className="text-xl font-semibold">{collections.find(c=>c.id===collection)?.title || (selectedCategory==='전체'?'전체 컬렉션':selectedCategory)}</h2><span className="text-sm text-slate-500" aria-live="polite">{filteredProducts.length}개 상품</span></div>
         {/* Product Gallery Grid */}
         {filteredProducts.length === 0 ? (
           <div className="border border-[#E5E7EB] rounded-lg p-12 sm:p-16 text-center bg-[#FFFFFF] space-y-4">
@@ -195,6 +207,7 @@ export const ShopPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setSearchQuery('');
+                    setCollection('');
                     setSelectedCategory('전체');
                   }}
                   className="min-h-[44px] px-4 py-2 text-sm font-medium border border-[#E5E7EB] rounded-md text-[#111827] hover:border-[#111827]"

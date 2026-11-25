@@ -235,6 +235,7 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   },
                 },
                 eventsSettings: {
+      buybackPrices: data.eventsSettings?.buybackPrices ?? [],
                   hideEndedEventsGlobally:
                     data.eventsSettings?.hideEndedEventsGlobally ??
                     DEFAULT_SITE_CONFIG.eventsSettings?.hideEndedEventsGlobally ??
@@ -397,9 +398,10 @@ export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [config.eventsSettings?.oripaItems]);
 
   const products = useMemo(() => {
-    const list: Product[] = isConfigInitialized ? rawProducts : (INITIAL_SAMPLE_PRODUCTS as Product[]);
+    // Never replace live inventory with demo prices while config is loading/unavailable.
+    const list: Product[] = rawProducts;
     return [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-  }, [isConfigInitialized, rawProducts]);
+  }, [rawProducts]);
 
   const posts = useMemo(() => {
     const list: Post[] = isConfigInitialized ? rawPosts : (INITIAL_SAMPLE_POSTS as Post[]);

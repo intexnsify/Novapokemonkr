@@ -51,6 +51,7 @@ export const AdminOripaTab: React.FC = () => {
     const nextConfig = {
       ...draftConfig,
       eventsSettings: {
+        ...draftConfig.eventsSettings,
         hideEndedEventsGlobally: draftConfig.eventsSettings?.hideEndedEventsGlobally ?? false,
         sponsorMeta: draftConfig.eventsSettings?.sponsorMeta ?? {},
         oripaItems: normalized,

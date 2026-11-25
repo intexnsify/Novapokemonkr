@@ -1495,6 +1495,7 @@ export const SponsorsTab: React.FC = () => {
     const nextConfig = {
       ...draftConfig,
       eventsSettings: {
+        ...draftConfig.eventsSettings,
         hideEndedEventsGlobally: draftConfig.eventsSettings?.hideEndedEventsGlobally ?? false,
         oripaItems: draftConfig.eventsSettings?.oripaItems,
         sponsorMeta: nextMap,
